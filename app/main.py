@@ -300,7 +300,7 @@ async def process_messages(messages: list[dict]):
             await send_whatsapp_message(phone, tpl.VERIFYING_AVAILABILITY, token, phone_id)
 
         try:
-            context = await call_n8n(decision["workflow"], context)
+            context = call_n8n(decision["workflow"], context)
         except Exception as e:
             print(f"[main] Errore call_n8n: {e}")
             context.setdefault("booking", {})["result"] = {
