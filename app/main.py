@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
@@ -277,3 +278,8 @@ def _resolve_template(decision: dict, context: dict) -> str:
     if key == "lateral_info":
         info_type = entities.get("info_type")
         msg = (context.get("request") or {}).get("message", "").lower()
+
+    @app.get("/")
+    def home():
+      return {"status": "running", "message": "Backend WhatsApp AI attivo!"}
+
