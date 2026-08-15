@@ -50,22 +50,23 @@ async def verify_whatsapp(request: Request):
 # ============================================================
 # WHATSAPP MESSAGE WEBHOOK
 # ============================================================
+import asyncio
+
 @app.post("/webhook/whatsapp")
 async def whatsapp_webhook(request: Request):
     payload = await request.json()
-    
-    # LOG DI EMERGENZA: Questo ti garantisce di vedere i log su Render non appena Meta tocca il server
     print("--- WEBHOOK RICEVUTO DA META ---", payload)
     
     message = _extract_message(payload)
     if not message:
         return {"status": "ignored"}
 
-    phone = message["from"]
-    # Passiamo la funzione di callback adattata per l'esecuzione asincrona
-    message_buffer.add_message(phone, message, lambda msgs: asyncio.run(process_messages(msgs)))
+    # TEST DIRETTO ASINCRONO: avviamo subito la pipeline saltando il buffer temporaneamente
+    # Questo usa BackgroundTasks nativo di FastAPI o create_task per non bloccare Meta
+    asyncio.create_task(process_messages([message]))
 
     return {"status": "accepted"}
+
 
 def _extract_message(payload: dict) -> dict | None:
     try:
