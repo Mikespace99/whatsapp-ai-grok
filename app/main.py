@@ -205,7 +205,9 @@ async def process_messages(messages: list[dict]):
     print(combined_text)
 
     # 1. Tenant
+    print("[DEBUG 1] Cerco il tenant per il numero business:", business_phone)
     tenant = get_tenant_by_whatsapp_number(business_phone)
+    print("[DEBUG 2] Risultato tenant:", "Trovato" if tenant else "NON Trovato", tenant)
     if not tenant:
         print("Tenant non trovato per numero:", business_phone)
         return
@@ -213,10 +215,14 @@ async def process_messages(messages: list[dict]):
     tenant_id = tenant["id"]
 
     # 2. Customer
+    print("[DEBUG 3] Cerco o creo il customer per il numero cliente:", phone)
     customer = get_or_create_customer(tenant_id, phone)
+    print("[DEBUG 4] Risultato customer:", customer)
 
     # 3. Conversazione
+    print("[DEBUG 5] Recupero la conversazione a DB...")
     conversation = get_or_create_conversation(tenant_id, customer["id"], phone)
+    print("[DEBUG 6] Risultato conversazione:", conversation)
 
     # 4. Storico messaggi
     recent = conversation.get("recent_messages") or []
@@ -251,6 +257,7 @@ async def process_messages(messages: list[dict]):
     )
 
     # 7. AI#1 – Intent Extraction
+    print("[DEBUG 7] Invoco parse_intent con OpenAI...")
     intent_result = parse_intent(
         message_text=combined_text,
         recent_messages=recent,
@@ -260,6 +267,7 @@ async def process_messages(messages: list[dict]):
     print("Intent:", intent_result)
 
     # 8. Decisione
+    print("[DEBUG 8] Calcolo la decisione con la state machine...")
     decision = decide(intent_result, conversation)
     print("Decision:", decision)
 
@@ -278,6 +286,7 @@ async def process_messages(messages: list[dict]):
     context["collected_data"] = collected
 
     # 9. Azione
+    print("[DEBUG 9] Eseguo l'azione richiesta...")
     reply_text = None
 
     if decision["action"] == "request_human":
@@ -286,3 +295,58 @@ async def process_messages(messages: list[dict]):
     elif decision["action"] == "call_n8n":
         if decision.get("template_key") == "verifying_availability":
             wa_info = tenant.get("info") or {}
+            token = wa_info.get("access_token") or Config.META_TOKEN
+            phone_id = wa_info.get("phone_number_id") or Config.PHONE_ID
+            await send_whatsapp_message(phone, tpl.VERIFYING_AVAILABILITY, token, phone_id)
+
+        try:
+            context = await call_n8n(decision["workflow"], context)
+        except Exception as e:
+            print(f"[main] Errore call_n8n: {e}")
+            context.setdefault("booking", {})["result"] = {
+                "success": False,
+                "error": str(e),
+            }
+
+        reply_text = _build_reply_after_n8n(context, decision)
+
+        booking = context.get("booking") or {}
+        if booking:
+            new_collected = dict(collected)
+            if booking.get("candidate_slots"):
+                new_collected["last_slots"] = booking["candidate_slots"]
+            if booking.get("selected_slot"):
+                new_collected["selected_slot"] = booking["selected_slot"]
+            if booking.get("result"):
+                new_collected["last_booking_result"] = booking["result"]
+
+            update_conversation(
+                conversation["id"],
+                collected_data=new_collected,
+                step=decision["step"],
+            )
+            context["collected_data"] = new_collected
+            conversation["collected_data"] = new_collected
+
+    else:
+        reply_text = _resolve_template(decision, context)
+
+    # 10. Invia risposta finale su WhatsApp
+    print("[DEBUG 10] Invio risposta finale all'utente: ", reply_text)
+    if reply_text:
+        wa_info = tenant.get("info") or {}
+        token = wa_info.get("access_token") or Config.META_TOKEN
+        phone_id = wa_info.get("phone_number_id") or Config.PHONE_ID
+        
+        send_result = await send_whatsapp_message(phone, reply_text, token, phone_id)
+        if send_result is None:
+            print(f"[main] Invio WhatsApp FALLITO per {phone}. Salvo comunque nello storico.")
+
+        append_message(
+            conversation["id"],
+            role="assistant",
+            content=reply_text,
+            current_messages=conversation.get("recent_messages"),
+        )
+    print("=== DONE ===")
+
