@@ -1,11 +1,6 @@
 """
 Costruisce il Context ufficiale che viaggia tra Backend e n8n.
-Versione semplice e lineare.
-
-Importante:
-la sezione "booking" viene ripristinata dai dati persistiti
-in collected_data (last_slots, selected_slot, ecc.)
-così non si perde tra un messaggio e l'altro.
+Versione con knowledge strutturata (sedi, orari, buffer, chiusure).
 """
 
 from datetime import datetime, timezone
@@ -18,20 +13,24 @@ def build_context(
     message: dict,
     services: list | None = None,
     working_hours: list | None = None,
+    knowledge: dict | None = None,
 ) -> dict:
     """
-    Context minimale ma completo.
-    n8n può aggiornare soprattutto la sezione "booking".
+    Context completo.
+    `knowledge` ha priorità su services/working_hours legacy.
     """
 
-    services = services or []
-    working_hours = working_hours or []
+    knowledge = knowledge or {}
+    services = knowledge.get("services") or services or []
+    working_hours = knowledge.get("working_hours") or working_hours or []
+    locations = knowledge.get("locations") or []
+    exceptions = knowledge.get("exceptions") or []
+    holidays = knowledge.get("holidays") or []
+
     collected = conversation.get("collected_data") or {}
     recent = conversation.get("recent_messages") or []
+    info = tenant.get("info") or {}
 
-    # -------------------------------------------------
-    # BOOKING: ripristina dallo stato persistito
-    # -------------------------------------------------
     booking = {
         "candidate_slots": collected.get("last_slots") or [],
         "selected_slot": collected.get("selected_slot"),
@@ -40,31 +39,25 @@ def build_context(
     }
 
     context = {
-        # -------------------------------------------------
-        # TENANT
-        # -------------------------------------------------
         "tenant": {
             "id": tenant["id"],
             "business_name": tenant.get("business_name"),
+            "specialty": tenant.get("specialty"),
             "assistant_name": tenant.get("assistant_name"),
             "timezone": tenant.get("timezone", "Europe/Rome"),
             "language": tenant.get("language", "it"),
             "slot_search_days": tenant.get("slot_search_days", 30),
-            "info": tenant.get("info") or {},
+            "min_lead_hours": tenant.get("min_lead_hours", 2),
+            "max_appointments_per_day": tenant.get("max_appointments_per_day", 12),
+            "info": info,
         },
 
-        # -------------------------------------------------
-        # CUSTOMER
-        # -------------------------------------------------
         "customer": {
             "id": customer["id"],
             "phone_number": customer.get("phone_number"),
             "full_name": customer.get("full_name"),
         },
 
-        # -------------------------------------------------
-        # CONVERSATION STATE
-        # -------------------------------------------------
         "conversation": {
             "id": conversation["id"],
             "status": conversation.get("status", "active"),
@@ -75,28 +68,16 @@ def build_context(
             "last_message_at": conversation.get("last_message_at"),
         },
 
-        # -------------------------------------------------
-        # DATI RACCOLTI + PREFERENZE
-        # -------------------------------------------------
         "collected_data": collected,
 
-        # -------------------------------------------------
-        # MESSAGGIO CORRENTE
-        # -------------------------------------------------
         "request": {
             "message": message.get("message") or message.get("text"),
             "message_id": message.get("message_id") or message.get("id"),
             "received_at": message.get("received_at"),
         },
 
-        # -------------------------------------------------
-        # STORIA RECENTE (per AI)
-        # -------------------------------------------------
         "recent_messages": recent,
 
-        # -------------------------------------------------
-        # AI (riempito dopo la chiamata a AI#1)
-        # -------------------------------------------------
         "ai": {
             "intent": None,
             "confidence": None,
@@ -104,22 +85,19 @@ def build_context(
             "preferences": {},
         },
 
-        # -------------------------------------------------
-        # BOOKING (ripristinato dallo stato precedente)
-        # -------------------------------------------------
         "booking": booking,
 
-        # -------------------------------------------------
-        # KNOWLEDGE
-        # -------------------------------------------------
         "knowledge": {
-            "services": services,
+            "locations": locations,
             "working_hours": working_hours,
+            "services": services,
+            "exceptions": exceptions,
+            "holidays": holidays,
+            "working_hours_text": knowledge.get("working_hours_text") or "",
+            "services_text": knowledge.get("services_text") or "",
+            "locations_text": knowledge.get("locations_text") or "",
         },
 
-        # -------------------------------------------------
-        # RUNTIME
-        # -------------------------------------------------
         "runtime": {
             "timezone": tenant.get("timezone", "Europe/Rome"),
             "processed_at": datetime.now(timezone.utc).isoformat(),
