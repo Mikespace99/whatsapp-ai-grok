@@ -144,6 +144,40 @@ def confirmation_summary(service: str, date: str, time: str, person_name: str) -
 # template_key  →  testo (o callable)
 # ------------------------------------------------------------
 
+
+
+def ask_service_with_list(services: list[dict] | None = None) -> str:
+    """Chiede il servizio mostrando l'elenco se disponibile."""
+    if not services:
+        return ASK_SERVICE
+    lines = []
+    for i, s in enumerate(services, 1):
+        name = s.get("name") or "Servizio"
+        dur = s.get("duration_minutes") or 30
+        lines.append(f"{i}. {name} ({dur} min)")
+    return (
+        "Per quale servizio vorresti prenotare?\n\n"
+        + "\n".join(lines)
+        + "\n\nPuoi rispondere con il numero o con il nome."
+    )
+
+
+def ask_location(locations: list[dict] | None = None) -> str:
+    """Chiede la sede se ce ne sono più di una."""
+    if not locations or len(locations) <= 1:
+        return ""
+    lines = []
+    for i, loc in enumerate(locations, 1):
+        name = loc.get("name") or "Sede"
+        city = loc.get("city") or ""
+        label = f"{name}" + (f" – {city}" if city else "")
+        lines.append(f"{i}. {label}")
+    return (
+        "In quale sede vorresti prenotare?\n\n"
+        + "\n".join(lines)
+        + "\n\nPuoi rispondere con il numero o con il nome."
+    )
+
 TEMPLATES = {
     "welcome": WELCOME,
     "unclear": UNCLEAR,
