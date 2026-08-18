@@ -61,6 +61,8 @@ class TenantData(BaseModel):
     phone: Optional[str] = None          # senza +39
     whatsapp_number: Optional[str] = None  # senza +39
     email: Optional[str] = None
+    phone_number_id: Optional[str] = None
+    access_token: Optional[str] = None
     info: Optional[dict] = None
 
 
@@ -255,6 +257,13 @@ async def api_save_config(body: FullConfigIn, request: Request):
         info["whatsapp_number"] = wa
     if t.email is not None:
         info["email"] = t.email
+    if t.phone_number_id is not None:
+        info["phone_number_id"] = (t.phone_number_id or "").strip()
+    if t.access_token is not None:
+        # non sovrascrivere con stringa vuota se già presente (evita cancellazioni accidentali)
+        tok = (t.access_token or "").strip()
+        if tok:
+            info["access_token"] = tok
 
     update_payload = {
         "business_name": t.business_name,
