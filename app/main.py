@@ -11,8 +11,7 @@ from app.config import Config
 from app.constants import WORKFLOW_IDLE
 from app.repositories.tenant import (
     get_tenant_by_whatsapp_number,
-    get_services,
-    get_working_hours,
+    get_tenant_knowledge,
 )
 from app.repositories.customer import get_or_create_customer
 from app.repositories.conversation import (
@@ -93,6 +92,10 @@ def _resolve_template(decision: dict, context: dict) -> str:
     entities = ai.get("entities") or {}
 
     static = tpl.get_template(key) if key else None
+    knowledge = context.get("knowledge") or {}
+
+    if key == "ask_service":
+        return tpl.ask_service_with_list(knowledge.get("services"))
 
     if key == "confirmation_summary":
         slot = collected.get("selected_slot") or {}
@@ -125,18 +128,37 @@ def _resolve_template(decision: dict, context: dict) -> str:
     if key == "lateral_info":
         info_type = entities.get("info_type")
         msg = ((context.get("request") or {}).get("message") or "").lower()
+        knowledge = context.get("knowledge") or {}
+        tenant_ctx = context.get("tenant") or {}
 
         if info_type == "parking" or "parcheggio" in msg:
-            parking = tenant_info.get("parking", "Sì, abbiamo parcheggio.")
+            parking = tenant_info.get("parking") or "Per il parcheggio ti consiglio di chiedere in studio."
             return f"{parking}\n\n{tpl.LATERAL_CONTINUE}"
         if info_type == "price" or "prezzo" in msg or "costa" in msg:
+            services_text = knowledge.get("services_text") or ""
+            if services_text:
+                return f"Ecco i servizi e i prezzi:\n\n{services_text}\n\n{tpl.LATERAL_CONTINUE}"
             return f"I prezzi dipendono dal servizio. Dimmi pure quale ti interessa.\n\n{tpl.LATERAL_CONTINUE}"
-        if info_type == "address" or "indirizzo" in msg or "dove siete" in msg:
-            address = tenant_info.get("address", "L'indirizzo è disponibile su richiesta.")
+        if info_type == "address" or "indirizzo" in msg or "dove siete" in msg or "sede" in msg:
+            locations_text = knowledge.get("locations_text") or ""
+            if locations_text:
+                return f"Le nostre sedi:\n\n{locations_text}\n\n{tpl.LATERAL_CONTINUE}"
+            address = tenant_info.get("address") or "L'indirizzo è disponibile su richiesta."
             return f"{address}\n\n{tpl.LATERAL_CONTINUE}"
         if info_type == "hours" or "orari" in msg:
-            return f"Gli orari di apertura dipendono dal giorno. Dimmi pure per quale giorno ti serve sapere.\n\n{tpl.LATERAL_CONTINUE}"
-        return f"Certo, dimmi pure cosa ti serve sapere.\n\n{tpl.LATERAL_CONTINUE}"
+            hours_text = knowledge.get("working_hours_text") or ""
+            if hours_text:
+                return f"Orari di apertura:\n\n{hours_text}\n\n{tpl.LATERAL_CONTINUE}"
+            return f"Gli orari dipendono dal giorno. Scrivimi pure per quale giorno ti serve sapere.\n\n{tpl.LATERAL_CONTINUE}"
+        if "serviz" in msg:
+            services_text = knowledge.get("services_text") or ""
+            if services_text:
+                return f"I nostri servizi:\n\n{services_text}\n\n{tpl.LATERAL_CONTINUE}"
+        specialty = tenant_ctx.get("specialty")
+        if specialty and ("specializz" in msg or "cosa fate" in msg or "chi siete" in msg):
+            name = tenant_ctx.get("business_name") or "Lo studio"
+            return f"{name} – {specialty}.\n\n{tpl.LATERAL_CONTINUE}"
+        return f"Certo, dimmi pure cosa ti serve sapere (orari, sedi, servizi, prezzi…).\n\n{tpl.LATERAL_CONTINUE}"
 
     if static:
         return static
@@ -147,15 +169,14 @@ def _resolve_template(decision: dict, context: dict) -> str:
 # ROTTE API (HEALTH & HOME)
 # ============================================================
 
-@app.get("/")
-def home():
-    """Risolve il 404 fornendo una rotta iniziale di verifica visiva."""
+@app.get("/api/status")
+def api_status():
     return {"status": "running", "message": "Backend WhatsApp AI attivo e funzionante!"}
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.1.2"}
+    return {"status": "ok", "version": "0.2.0"}
 
 
 # ============================================================
@@ -306,9 +327,8 @@ async def process_messages(messages: list[dict]):
         )
     conversation["recent_messages"] = recent
 
-    # 5. Knowledge
-    services = get_services(tenant_id)
-    working_hours = get_working_hours(tenant_id)
+    # 5. Knowledge strutturata (sedi, orari, servizi, chiusure, festività)
+    knowledge = get_tenant_knowledge(tenant_id)
 
     # 6. Context
     fake_message = {
@@ -323,8 +343,7 @@ async def process_messages(messages: list[dict]):
         customer=customer,
         conversation=conversation,
         message=fake_message,
-        services=services,
-        working_hours=working_hours,
+        knowledge=knowledge,
     )
 
     # 7. AI#1 – Intent Extraction
@@ -451,4 +470,3 @@ async def process_messages(messages: list[dict]):
             current_messages=conversation.get("recent_messages"),
         )
     print("=== DONE ===")
-
