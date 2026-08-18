@@ -63,6 +63,7 @@ class TenantData(BaseModel):
     email: Optional[str] = None
     phone_number_id: Optional[str] = None
     access_token: Optional[str] = None
+    google_calendar_id: Optional[str] = None
     info: Optional[dict] = None
 
 
@@ -264,6 +265,10 @@ async def api_save_config(body: FullConfigIn, request: Request):
         tok = (t.access_token or "").strip()
         if tok:
             info["access_token"] = tok
+    if t.google_calendar_id is not None:
+        gcal = (t.google_calendar_id or "").strip()
+        if gcal:
+            info["google_calendar_id"] = gcal
 
     update_payload = {
         "business_name": t.business_name,
@@ -276,6 +281,8 @@ async def api_save_config(body: FullConfigIn, request: Request):
         "slot_search_days": t.slot_search_days if t.slot_search_days is not None else 30,
         "info": info,
     }
+    if t.google_calendar_id is not None and (t.google_calendar_id or "").strip():
+        update_payload["google_calendar_id"] = t.google_calendar_id.strip()
     if body.mark_completed:
         update_payload["onboarding_completed"] = True
 
