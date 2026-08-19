@@ -32,10 +32,15 @@ def build_context(
     info = tenant.get("info") or {}
 
     booking = {
-        "candidate_slots": collected.get("last_slots") or [],
-        "selected_slot": collected.get("selected_slot"),
-        "matched_preferences": collected.get("matched_preferences"),
-        "result": collected.get("last_booking_result"),
+     "candidate_slots": collected.get("last_slots") or [],
+     "selected_slot": collected.get("selected_slot"),
+     "matched_preferences": collected.get("matched_preferences"),
+     "result": collected.get("last_booking_result"),
+     
+     "slot_context": {
+         "status": collected.get("slot_context_status", "none"),
+         "search_preferences": collected.get("search_preferences") or {},
+     },
     }
 
     context = {
