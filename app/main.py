@@ -8,7 +8,7 @@ from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import Config
-from app.constants import WORKFLOW_IDLE
+from app.constants import WORKFLOW_IDLE, STEP_NONE
 from app.repositories.tenant import (
     get_tenant_by_whatsapp_number,
     get_tenant_knowledge,
@@ -348,11 +348,14 @@ async def process_messages(messages: list[dict]):
 
     # 7. AI#1 – Intent Extraction
     print("[DEBUG 7] Invoco parse_intent con OpenAI...")
+    
     intent_result = parse_intent(
-        message_text=combined_text,
-        recent_messages=recent,
-        current_workflow=conversation.get("workflow", WORKFLOW_IDLE),
+    message_text=combined_text,
+    recent_messages=recent,
+    current_workflow=conversation.get("workflow", WORKFLOW_IDLE),
+    current_step=conversation.get("step", STEP_NONE),
     )
+    
     context["ai"] = intent_result
     print("Intent:", intent_result)
 
