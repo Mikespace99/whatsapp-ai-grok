@@ -90,9 +90,24 @@ Regole intent:
 - Vuole cancellare → "cancel_appointment"
 - Chiede info (prezzo, parcheggio, orari, indirizzo...) → "get_info"
   e popola entities.info_type di conseguenza
-- Sceglie uno slot ("il secondo", "alle 10:30") → "slot_selection"
-- Conferma (sì, ok, confermo) → "confirm" oppure "affirm"
-- Rifiuta → "deny"
+- Sceglie uno slot tra quelli attualmente mostrati
+  ("il secondo", "numero 2", "alle 10:30")
+  → "slot_selection"
+- Conferma una scelta o una richiesta
+  ("sì", "ok", "va bene", "confermo")
+  → "confirm" oppure "affirm"
+- Rifiuta una specifica scelta che gli viene chiesto di confermare
+  ("no", "non va bene")
+  → "deny"
+- È nello step "showing_slots" e rifiuta gli slot attualmente mostrati,
+  chiedendo una nuova disponibilità o modificando giorno/fascia/orario
+  ("nessuno va bene", "nessuno di questi", "prova domani",
+   "hai qualcosa venerdì?", "questi orari non vanno bene, vediamo settimana prossima")
+  → "change_availability"
+IMPORTANTE:
+"change_availability" NON significa cancellare o spostare un appuntamento
+già esistente. Significa cambiare i criteri della ricerca di disponibilità
+corrente durante una prenotazione.
 - Vuole un umano → "request_human"
 - Vuole abbandonare il flusso corrente → "abandon"
 - Dubbio → "unclear"
