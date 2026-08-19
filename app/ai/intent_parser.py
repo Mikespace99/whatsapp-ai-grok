@@ -44,6 +44,15 @@ ALLOWED_INTENTS = [
 ]
 
 
+def parse_intent(
+    message_text: str,
+    recent_messages: list | None = None,
+    current_workflow: str = "idle",
+    current_step: str = "none",
+    timezone_str: str = "Europe/Rome",
+) -> dict:
+
+
 def _build_system_prompt(today_str: str, weekday_str: str) -> str:
     intents_list = ", ".join(f'"{i}"' for i in ALLOWED_INTENTS)
     return f"""
@@ -133,13 +142,11 @@ def parse_intent(
         history_text += "\n"
 
     user_content = (
-        f"{history_text}"
-        f"Workflow attuale: {current_workflow}\n"
-        f"Data di oggi: {weekday_str} {today_str}\n"
-        f"Messaggio corrente del cliente: {message_text}"
+     f"Workflow attuale: {current_workflow}\n"
+     f"Step attuale: {current_step}\n"
+     f"Data di oggi: {weekday_str} {today_str}\n"
+     system_prompt = _build_system_prompt(today_str, weekday_str)
     )
-
-    system_prompt = _build_system_prompt(today_str, weekday_str)
 
     try:
         response = client.chat.completions.create(
