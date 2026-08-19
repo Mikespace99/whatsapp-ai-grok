@@ -22,6 +22,7 @@ from app.constants import (
     INTENT_REQUEST_HUMAN,
     INTENT_ABANDON,
     INTENT_UNCLEAR,
+    INTENT_CHANGE_AVAILABILITY = "change_availability",
 )
 
 client = OpenAI(api_key=Config.OPENAI_API_KEY)
