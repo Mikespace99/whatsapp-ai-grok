@@ -376,10 +376,10 @@ if expired:
 print("[DEBUG 7] Invoco parse_intent con OpenAI...")
   
     intent_result = parse_intent(
-    message_text=combined_text,
-    recent_messages=recent,
-    current_workflow=conversation.get("workflow", WORKFLOW_IDLE),
-    current_step=conversation.get("step", STEP_NONE),
+      message_text=combined_text,
+      recent_messages=recent,
+      current_workflow=conversation.get("workflow", WORKFLOW_IDLE),
+     current_step=conversation.get("step", STEP_NONE),
     )
     
     context["ai"] = intent_result
