@@ -342,7 +342,8 @@ async def process_messages(messages: list[dict]):
         "from": phone,
         "to": business_phone,
     }
-    context = build_context(
+
+        context = build_context(
         tenant=tenant,
         customer=customer,
         conversation=conversation,
@@ -350,26 +351,26 @@ async def process_messages(messages: list[dict]):
         knowledge=knowledge,
     )
 
-if expired:
-    wa_info = tenant.get("info") or {}
-    token = wa_info.get("access_token") or Config.WHATSAPP_TOKEN
-    phone_id = wa_info.get("phone_number_id") or Config.WHATSAPP_PHONE_NUMBER_ID
+    if expired:
+        wa_info = tenant.get("info") or {}
+        token = wa_info.get("access_token") or Config.WHATSAPP_TOKEN
+        phone_id = wa_info.get("phone_number_id") or Config.WHATSAPP_PHONE_NUMBER_ID
 
-    await send_whatsapp_message(
-        phone,
-        tpl.CONVERSATION_EXPIRED,
-        token,
-        phone_id,
-    )
+        await send_whatsapp_message(
+            phone,
+            tpl.CONVERSATION_EXPIRED,
+            token,
+            phone_id,
+        )
 
-    append_message(
-        conversation["id"],
-        role="assistant",
-        content=tpl.CONVERSATION_EXPIRED,
-        current_messages=conversation.get("recent_messages"),
-    )
+        append_message(
+            conversation["id"],
+            role="assistant",
+            content=tpl.CONVERSATION_EXPIRED,
+            current_messages=conversation.get("recent_messages"),
+        )
 
-    print("[conversation] Conversazione precedente scaduta: nuova conversazione creata")
+        print("[conversation] Conversazione precedente scaduta: avviare nuova conversazione")
     return
 
 # 7. AI#1 – Intent Extraction
