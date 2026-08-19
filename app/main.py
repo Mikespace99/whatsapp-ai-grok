@@ -343,7 +343,7 @@ async def process_messages(messages: list[dict]):
         "to": business_phone,
     }
 
-        context = build_context(
+    context = build_context(
         tenant=tenant,
         customer=customer,
         conversation=conversation,
