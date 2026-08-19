@@ -372,13 +372,9 @@ if expired:
     print("[conversation] Conversazione precedente scaduta: nuova conversazione creata")
     return
 
-
 # 7. AI#1 – Intent Extraction
 print("[DEBUG 7] Invoco parse_intent con OpenAI...")
-
-# 7. AI#1 – Intent Extraction
-    print("[DEBUG 7] Invoco parse_intent con OpenAI...")
-    
+  
     intent_result = parse_intent(
     message_text=combined_text,
     recent_messages=recent,
