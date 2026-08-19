@@ -373,13 +373,13 @@ if expired:
     return
 
 # 7. AI#1 – Intent Extraction
-print("[DEBUG 7] Invoco parse_intent con OpenAI...")
+    print("[DEBUG 7] Invoco parse_intent con OpenAI...")
   
     intent_result = parse_intent(
       message_text=combined_text,
       recent_messages=recent,
       current_workflow=conversation.get("workflow", WORKFLOW_IDLE),
-     current_step=conversation.get("step", STEP_NONE),
+      current_step=conversation.get("step", STEP_NONE),
     )
     
     context["ai"] = intent_result
