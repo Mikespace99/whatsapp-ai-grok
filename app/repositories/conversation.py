@@ -89,15 +89,53 @@ def create_conversation(tenant_id: str, customer_id: str, phone_number: str) -> 
     return insert.data[0]
 
 
-def get_or_create_conversation(tenant_id: str, customer_id: str, phone_number: str) -> dict:
+def get_or_create_conversation(
+    tenant_id: str,
+    customer_id: str,
+    phone_number: str,
+) -> tuple[dict, bool]:
     """
-    Firma: (tenant_id, customer_id, phone_number) — 3 parametri.
-    Allineata con la chiamata in main.py.
+    Ritorna (conversation, expired).
+
+    expired=True significa che esisteva una conversazione precedente
+    ma è scaduta per inattività.
     """
-    conv = get_active_conversation(tenant_id, phone_number)
-    if conv:
-        return conv
-    return create_conversation(tenant_id, customer_id, phone_number)
+    phone_number = normalize_phone(phone_number)
+
+    sb = get_supabase()
+    result = (
+        sb.table("conversations")
+        .select("*")
+        .eq("tenant_id", tenant_id)
+        .eq("phone_number", phone_number)
+        .eq("status", "active")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    if result.data:
+        conv = result.data[0]
+        last_dt = _parse_ts(conv.get("last_message_at"))
+
+        if last_dt:
+            timeout = timedelta(minutes=Config.CONVERSATION_TIMEOUT_MINUTES)
+
+            if _now() - last_dt > timeout:
+                close_conversation(conv["id"])
+                return create_conversation(
+                    tenant_id,
+                    customer_id,
+                    phone_number,
+                ), True
+
+        return conv, False
+
+    return create_conversation(
+        tenant_id,
+        customer_id,
+        phone_number,
+    ), False
 
 
 def close_conversation(conversation_id: str):
