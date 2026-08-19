@@ -36,6 +36,7 @@ INTENT_DENY = "deny"
 INTENT_REQUEST_HUMAN = "request_human"
 INTENT_ABANDON = "abandon"
 INTENT_UNCLEAR = "unclear"
+INTENT_CHANGE_AVAILABILITY = "change_availability"
 
 # ============================================================
 # Mapping intent → workflow
