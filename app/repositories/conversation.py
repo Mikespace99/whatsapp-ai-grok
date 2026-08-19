@@ -95,18 +95,60 @@ def get_or_create_conversation(
     tenant_id: str,
     customer_id: str,
     phone_number: str,
-) -> dict:
-    conv = get_active_conversation(tenant_id, phone_number)
+) -> tuple[dict, bool]:
+    """
+    Restituisce:
+        (conversation, expired)
 
-    if conv:
-        return conv
+    expired=True significa che una precedente conversazione attiva
+    è appena scaduta ed è stata chiusa.
+    """
+    phone_number = normalize_phone(phone_number)
 
+    sb = get_supabase()
+
+    result = (
+        sb.table("conversations")
+        .select("*")
+        .eq("tenant_id", tenant_id)
+        .eq("phone_number", phone_number)
+        .eq("status", "active")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    if result.data:
+        conv = result.data[0]
+
+        last_dt = _parse_ts(conv.get("last_message_at"))
+
+        if last_dt:
+            timeout = timedelta(
+                minutes=Config.CONVERSATION_TIMEOUT_MINUTES
+            )
+
+            if _now() - last_dt > timeout:
+                # Chiudi definitivamente la vecchia conversazione
+                close_conversation(conv["id"])
+
+                # Crea una nuova conversazione vuota
+                new_conv = create_conversation(
+                    tenant_id,
+                    customer_id,
+                    phone_number,
+                )
+
+                return new_conv, True
+
+        return conv, False
+
+    # Nessuna conversazione precedente
     return create_conversation(
         tenant_id,
         customer_id,
         phone_number,
-    )
-
+    ), False
 
 def close_conversation(conversation_id: str, reason: str = "completed"):
     sb = get_supabase()
