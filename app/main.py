@@ -350,34 +350,32 @@ async def process_messages(messages: list[dict]):
         knowledge=knowledge,
     )
 
+   if expired:
+    wa_info = tenant.get("info") or {}
+    token = wa_info.get("access_token") or Config.WHATSAPP_TOKEN
+    phone_id = wa_info.get("phone_number_id") or Config.WHATSAPP_PHONE_NUMBER_ID
 
-    if expired:
-     wa_info = tenant.get("info") or {}
-     token = wa_info.get("access_token") or Config.WHATSAPP_TOKEN
-     phone_id = wa_info.get("phone_number_id") or Config.WHATSAPP_PHONE_NUMBER_ID
-
-     await send_whatsapp_message(
+    await send_whatsapp_message(
         phone,
         tpl.CONVERSATION_EXPIRED,
         token,
         phone_id,
-     )
+    )
 
-     append_message(
+    append_message(
         conversation["id"],
         role="assistant",
         content=tpl.CONVERSATION_EXPIRED,
         current_messages=conversation.get("recent_messages"),
-     )
+    )
 
-     print("[conversation] Conversazione precedente scaduta: avviare nuova conversazione")
+    print("[conversation] Conversazione precedente scaduta: avviare nuova conversazione")
 
-    # IMPORTANTISSIMO:
-    # il messaggio che ha fatto scattare la scadenza NON viene interpretato
+    # SOLO in questo caso interrompiamo il processing.
     return
-   
-    # 7. AI#1 – Intent Extraction
-    print("[DEBUG 7] Invoco parse_intent con OpenAI...")
+
+# 7. AI#1 – Intent Extraction
+print("[DEBUG 7] Invoco parse_intent con OpenAI...")
     
     intent_result = parse_intent(
     message_text=combined_text,
