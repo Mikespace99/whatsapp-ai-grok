@@ -141,11 +141,13 @@ def get_or_create_conversation(
     ), False
 
 
-def close_conversation(conversation_id: str):
+def close_conversation(conversation_id: str, reason: str = "completed"):
     sb = get_supabase()
+
     sb.table("conversations").update({
         "status": "closed",
         "closed_at": _now().isoformat(),
+        "close_reason": reason,
     }).eq("id", conversation_id).execute()
 
 
