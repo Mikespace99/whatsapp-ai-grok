@@ -34,11 +34,11 @@ def _parse_ts(value) -> datetime | None:
         return dt.astimezone(timezone.utc)
     return None
 
-
 def get_active_conversation(tenant_id: str, phone_number: str) -> dict | None:
-    """Ritorna la conversazione attiva (se esiste e non è scaduta)."""
+    """Ritorna solo una conversazione realmente attiva e non scaduta."""
     phone_number = normalize_phone(phone_number)
     sb = get_supabase()
+
     result = (
         sb.table("conversations")
         .select("*")
@@ -49,18 +49,21 @@ def get_active_conversation(tenant_id: str, phone_number: str) -> dict | None:
         .limit(1)
         .execute()
     )
+
     if not result.data:
         return None
 
     conv = result.data[0]
     last_dt = _parse_ts(conv.get("last_message_at"))
+
     if last_dt:
         timeout = timedelta(minutes=Config.CONVERSATION_TIMEOUT_MINUTES)
-        if _now() - last_dt > timeout:
-            close_conversation(conv["id"])
-            return None
-    return conv
 
+        if _now() - last_dt > timeout:
+            close_conversation(conv["id"], reason="timeout")
+            return None
+
+    return conv
 
 def create_conversation(tenant_id: str, customer_id: str, phone_number: str) -> dict:
     phone_number = normalize_phone(phone_number)
