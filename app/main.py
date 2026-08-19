@@ -313,7 +313,11 @@ async def process_messages(messages: list[dict]):
 
     # 3. Conversazione
     print("[DEBUG 5] Recupero la conversazione a DB...")
-    conversation = get_or_create_conversation(tenant_id, customer["id"], phone)
+    conversation, expired = get_or_create_conversation(
+     tenant["id"],
+     customer["id"],
+     phone,
+    )
     print("[DEBUG 6] Risultato conversazione:", conversation)
 
     # 4. Storico messaggi
