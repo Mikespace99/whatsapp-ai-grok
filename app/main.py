@@ -34,6 +34,7 @@ app = FastAPI(title="AI Booking Simple", version="0.2.0")
 # Web UI (login, register, onboarding)
 app.include_router(web_router)
 
+
 # ============================================================
 # UTILITIES E HELPER DI FORMATTAZIONE
 # ============================================================
@@ -108,7 +109,7 @@ def _resolve_template(decision: dict, context: dict) -> str:
             time=slot_time or "—",
             person_name=collected.get("person_name") or "—",
         )
-        
+
     if key == "confirm_slot":
         slot = collected.get("selected_slot") or {}
         label = slot.get("label") if isinstance(slot, dict) else None
@@ -124,7 +125,7 @@ def _resolve_template(decision: dict, context: dict) -> str:
         if labels:
             return tpl.showing_slots(labels)
         return tpl.NO_SLOTS_FOUND
-        
+
     if key == "lateral_info":
         info_type = entities.get("info_type")
         msg = ((context.get("request") or {}).get("message") or "").lower()
@@ -314,11 +315,11 @@ async def process_messages(messages: list[dict]):
     # 3. Conversazione
     print("[DEBUG 5] Recupero la conversazione a DB...")
     conversation, expired = get_or_create_conversation(
-     tenant["id"],
-     customer["id"],
-     phone,
+        tenant["id"],
+        customer["id"],
+        phone,
     )
-    print("[DEBUG 6] Risultato conversazione:", conversation)
+    print("[DEBUG 6] Risultato conversazione:", conversation, "| expired:", expired)
 
     # 4. Storico messaggi
     recent = conversation.get("recent_messages") or []
@@ -342,7 +343,6 @@ async def process_messages(messages: list[dict]):
         "from": phone,
         "to": business_phone,
     }
-
     context = build_context(
         tenant=tenant,
         customer=customer,
@@ -351,6 +351,8 @@ async def process_messages(messages: list[dict]):
         knowledge=knowledge,
     )
 
+    # Se la conversazione precedente era scaduta: avvisa e CONTINUA
+    # (non interrompere: elaboriamo comunque il messaggio corrente)
     if expired:
         wa_info = tenant.get("info") or {}
         token = wa_info.get("access_token") or Config.WHATSAPP_TOKEN
@@ -363,26 +365,26 @@ async def process_messages(messages: list[dict]):
             phone_id,
         )
 
-        append_message(
+        recent = append_message(
             conversation["id"],
             role="assistant",
             content=tpl.CONVERSATION_EXPIRED,
             current_messages=conversation.get("recent_messages"),
         )
+        conversation["recent_messages"] = recent
 
-        print("[conversation] Conversazione precedente scaduta: avviare nuova conversazione")
-    return
+        print("[conversation] Conversazione precedente scaduta: avviata nuova conversazione")
 
-# 7. AI#1 – Intent Extraction
+    # 7. AI#1 – Intent Extraction
     print("[DEBUG 7] Invoco parse_intent con OpenAI...")
-  
+
     intent_result = parse_intent(
-      message_text=combined_text,
-      recent_messages=recent,
-      current_workflow=conversation.get("workflow", WORKFLOW_IDLE),
-      current_step=conversation.get("step", STEP_NONE),
+        message_text=combined_text,
+        recent_messages=recent,
+        current_workflow=conversation.get("workflow", WORKFLOW_IDLE),
+        current_step=conversation.get("step", STEP_NONE),
     )
-    
+
     context["ai"] = intent_result
     print("Intent:", intent_result)
 
@@ -488,7 +490,7 @@ async def process_messages(messages: list[dict]):
         wa_info = tenant.get("info") or {}
         token = wa_info.get("access_token") or Config.WHATSAPP_TOKEN
         phone_id = wa_info.get("phone_number_id") or Config.WHATSAPP_PHONE_NUMBER_ID
-        
+
         send_result = await send_whatsapp_message(phone, reply_text, token, phone_id)
         if send_result is None:
             print(f"[main] Invio WhatsApp FALLITO per {phone}. Salvo comunque nello storico.")
