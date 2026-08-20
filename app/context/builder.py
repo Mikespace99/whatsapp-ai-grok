@@ -109,7 +109,4 @@ def build_context(
         },
     }
 
-
-    context = build_context(tenant, customer, conversation, message, services, working_hours, knowledge)
-    print("[DEBUG] calendar_id nel context:", context["tenant"]["info"].get("google_calendar_id"))
     return context
