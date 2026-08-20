@@ -351,8 +351,6 @@ async def process_messages(messages: list[dict]):
         knowledge=knowledge,
     )
 
-
-    context = build_context(tenant, customer, conversation, message, services, working_hours, knowledge)
     print("[DEBUG] calendar_id nel context:", context["tenant"]["info"].get("google_calendar_id"))
     # Se la conversazione precedente era scaduta: avvisa e CONTINUA
     # (non interrompere: elaboriamo comunque il messaggio corrente)
