@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Agenda – AI Booking</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    [x-cloak] { display: none !important; }
+    .soft-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .soft-scroll::-webkit-scrollbar-track { background: transparent; }
+    .soft-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .hour-row { min-height: 56px; }
+    @media (min-width: 768px) { .hour-row { min-height: 64px; } }
+  </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased" x-data="agenda()" x-init="init()">
+
+  <div x-show="toast" x-cloak x-transition
+       class="fixed top-4 right-4 z-[60] px-4 py-3 rounded-xl shadow-lg text-sm font-medium max-w-sm"
+       :class="toastOk ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'"
+       x-text="toast"></div>
+
+  <header class="lg:hidden sticky top-0 z-40 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <button @click="mobileNavOpen = !mobileNavOpen" type="button"
+              class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+      <div>
+        <div class="font-semibold text-slate-900 text-sm">Agenda</div>
+        <div class="text-xs text-slate-500" x-text="viewLabel"></div>
+      </div>
+    </div>
+    <button @click="showToast('Creazione manuale in arrivo')" type="button"
+            class="inline-flex items-center gap-1.5 px-3 py-2 bg-brand-600 text-white text-sm font-medium rounded-xl">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Nuovo
+    </button>
+  </header>
+
+  <div x-show="mobileNavOpen" x-cloak @click="mobileNavOpen = false"
+       class="lg:hidden fixed inset-0 bg-black/40 z-40" x-transition.opacity></div>
+
+  <div class="flex min-h-screen">
+
+    <aside class="fixed lg:sticky top-0 left-0 z-50 lg:z-30 h-full lg:h-screen w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300"
+      :class="mobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'">
+
+      <div class="px-5 py-5 border-b border-slate-100 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold shadow-sm shadow-brand-200">A</div>
+        <div>
+          <div class="font-semibold text-slate-900 text-sm">AI Booking</div>
+          <div class="text-xs text-slate-500 truncate" x-text="studioName"></div>
+        </div>
+      </div>
+
+      <div class="p-3">
+        <button @click="showToast('Creazione manuale in arrivo')" type="button"
+                class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-xl hover:bg-brand-700 transition shadow-sm shadow-brand-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Nuovo appuntamento
+        </button>
+      </div>
+
+      <nav class="flex-1 px-3 space-y-0.5">
+        <a href="/agenda" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium bg-brand-50 text-brand-700">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          Agenda
+        </a>
+        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
+          <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Clienti
+        </a>
+        <a href="/onboarding" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
+          <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Impostazioni
+        </a>
+      </nav>
+
+      <div class="p-4 border-t border-slate-100 space-y-1">
+        <button type="button" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-50">
+          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Supporto
+        </button>
+        <a href="/logout" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-red-50 hover:text-red-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Logout
+        </a>
+      </div>
+    </aside>
+
+    <main class="flex-1 min-w-0 flex flex-col min-h-screen">
+
+      <header class="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <h1 class="text-xl font-bold text-slate-900 hidden lg:block">Agenda</h1>
+            <div class="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+              <button @click="prevPeriod()" type="button" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <button @click="goToday()" type="button"
+                      class="px-3 py-1.5 text-sm font-medium rounded-lg hover:bg-white text-slate-700 transition"
+                      x-text="periodLabel"></button>
+              <button @click="nextPeriod()" type="button" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+            <button @click="goToday()" type="button"
+                    class="text-sm font-medium text-brand-600 hover:text-brand-800 px-2 py-1"
+                    x-show="!isTodayVisible">Oggi</button>
+          </div>
+
+          <div class="flex items-center gap-2 flex-wrap">
+            <select class="text-sm rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-600 focus:ring-2 focus:ring-brand-500">
+              <option>Tutte le sedi</option>
+              <option>Sede principale</option>
+              <option>Studio secondario</option>
+            </select>
+            <div class="flex bg-slate-100 rounded-xl p-1">
+              <button @click="view = 'day'" type="button"
+                      class="px-3 py-1.5 text-sm font-medium rounded-lg transition"
+                      :class="view === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'">Giorno</button>
+              <button @click="view = 'week'" type="button"
+                      class="px-3 py-1.5 text-sm font-medium rounded-lg transition"
+                      :class="view === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'">Settimana</button>
+              <button @click="view = 'month'" type="button"
+                      class="px-3 py-1.5 text-sm font-medium rounded-lg transition"
+                      :class="view === 'month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'">Mese</button>
+            </div>
+            <button @click="showToast('Creazione manuale in arrivo')" type="button"
+                    class="hidden lg:inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-xl hover:bg-brand-700 transition shadow-sm shadow-brand-200">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Nuovo appuntamento
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="flex-1 overflow-auto soft-scroll p-4 sm:p-6 lg:p-8">
+
+        <!-- WEEK VIEW -->
+        <div x-show="view === 'week'" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="grid grid-cols-8 border-b border-slate-200 sticky top-0 bg-white z-10">
+            <div class="p-2 sm:p-3 text-xs text-slate-400 border-r border-slate-100"></div>
+            <template x-for="(day, di) in weekDays" :key="day.date">
+              <div class="p-2 sm:p-3 text-center border-r border-slate-100 last:border-r-0 relative group"
+                   :class="day.isToday ? 'bg-brand-50' : ''">
+                <div class="text-[10px] sm:text-xs font-medium uppercase tracking-wide"
+                     :class="day.isToday ? 'text-brand-600' : 'text-slate-400'"
+                     x-text="day.weekday"></div>
+                <div class="text-sm sm:text-lg font-semibold mt-0.5"
+                     :class="day.isToday ? 'text-brand-700' : 'text-slate-800'"
+                     x-text="day.dayNum"></div>
+                <div class="mt-1 flex justify-center">
+                  <span class="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                        :class="{
+                          'bg-emerald-100 text-emerald-700': day.availability === 'normal',
+                          'bg-amber-100 text-amber-700': day.availability === 'modified',
+                          'bg-red-100 text-red-700': day.availability === 'closed'
+                        }">
+                    <span class="w-1.5 h-1.5 rounded-full"
+                          :class="{
+                            'bg-emerald-500': day.availability === 'normal',
+                            'bg-amber-500': day.availability === 'modified',
+                            'bg-red-500': day.availability === 'closed'
+                          }"></span>
+                    <span class="hidden sm:inline" x-text="availLabel(day.availability)"></span>
+                  </span>
+                </div>
+                <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition">
+                  <button @click="openDayMenu(day)" type="button"
+                          class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <div class="grid grid-cols-8 relative">
+            <div class="border-r border-slate-100">
+              <template x-for="h in hours" :key="h">
+                <div class="hour-row px-2 py-1 text-[10px] sm:text-xs text-slate-400 text-right border-b border-slate-50"
+                     x-text="h + ':00'"></div>
+              </template>
+            </div>
+
+            <template x-for="(day, di) in weekDays" :key="'col-'+day.date">
+              <div class="border-r border-slate-100 last:border-r-0 relative"
+                   :class="day.availability === 'closed' ? 'bg-red-50/40' : (day.isToday ? 'bg-brand-50/20' : '')">
+                <template x-for="h in hours" :key="h">
+                  <div class="hour-row border-b border-slate-50 relative"
+                       @click="day.availability !== 'closed' && showToast('Crea appuntamento ' + day.weekday + ' ' + h + ':00 (mockup)')"></div>
+                </template>
+                <template x-for="apt in appointmentsFor(day.date)" :key="apt.id">
+                  <div class="absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[10px] sm:text-xs cursor-pointer overflow-hidden shadow-sm border transition hover:shadow-md z-10"
+                       :class="aptColor(apt.status)"
+                       :style="aptStyle(apt)"
+                       @click.stop="selectAppointment(apt)">
+                    <div class="font-semibold truncate leading-tight" x-text="apt.client"></div>
+                    <div class="truncate opacity-80 leading-tight" x-text="apt.service"></div>
+                    <div class="truncate opacity-70 leading-tight hidden sm:block" x-text="apt.time"></div>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- DAY VIEW -->
+        <div x-show="view === 'day'" class="space-y-4">
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+              <div>
+                <h2 class="text-lg font-semibold text-slate-900" x-text="selectedDayLabel"></h2>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full"
+                        :class="{
+                          'bg-emerald-100 text-emerald-700': selectedDay.availability === 'normal',
+                          'bg-amber-100 text-amber-700': selectedDay.availability === 'modified',
+                          'bg-red-100 text-red-700': selectedDay.availability === 'closed'
+                        }">
+                    <span class="w-1.5 h-1.5 rounded-full"
+                          :class="{
+                            'bg-emerald-500': selectedDay.availability === 'normal',
+                            'bg-amber-500': selectedDay.availability === 'modified',
+                            'bg-red-500': selectedDay.availability === 'closed'
+                          }"></span>
+                    <span x-text="availLabel(selectedDay.availability)"></span>
+                  </span>
+                  <button @click="openDayMenu(selectedDay)" type="button"
+                          class="text-xs text-brand-600 hover:underline font-medium">Modifica disponibilità</button>
+                </div>
+              </div>
+              <button @click="showToast('Creazione manuale in arrivo')" type="button"
+                      class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-xl hover:bg-brand-700">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Nuovo appuntamento
+              </button>
+            </div>
+
+            <div class="space-y-2">
+              <template x-if="selectedDay.availability === 'closed'">
+                <div class="text-center py-12 text-slate-400">
+                  <p class="font-medium text-slate-600">Giorno chiuso</p>
+                  <p class="text-sm mt-1">Nessun appuntamento possibile</p>
+                </div>
+              </template>
+              <template x-if="selectedDay.availability !== 'closed'">
+                <div>
+                  <template x-for="apt in appointmentsFor(selectedDay.date)" :key="apt.id">
+                    <div class="flex gap-4 p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition cursor-pointer mb-2"
+                         @click="selectAppointment(apt)">
+                      <div class="w-16 flex-shrink-0 text-center">
+                        <div class="text-sm font-semibold text-slate-900" x-text="apt.start"></div>
+                        <div class="text-xs text-slate-400" x-text="apt.end"></div>
+                      </div>
+                      <div class="w-1 rounded-full flex-shrink-0"
+                           :class="{
+                             'bg-emerald-400': apt.status === 'confirmed',
+                             'bg-amber-400': apt.status === 'pending',
+                             'bg-red-400': apt.status === 'cancelled'
+                           }"></div>
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-start justify-between gap-2">
+                          <div>
+                            <div class="font-medium text-slate-900" x-text="apt.client"></div>
+                            <div class="text-sm text-slate-500" x-text="apt.service"></div>
+                          </div>
+                          <span class="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
+                                :class="{
+                                  'bg-emerald-100 text-emerald-700': apt.status === 'confirmed',
+                                  'bg-amber-100 text-amber-700': apt.status === 'pending',
+                                  'bg-red-100 text-red-700': apt.status === 'cancelled'
+                                }"
+                                x-text="statusLabel(apt.status)"></span>
+                        </div>
+                        <div class="text-xs text-slate-400 mt-1" x-text="apt.location"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <template x-if="appointmentsFor(selectedDay.date).length === 0">
+                    <div class="text-center py-12 text-slate-400">
+                      <p class="font-medium text-slate-600">Nessun appuntamento</p>
+                      <p class="text-sm mt-1">La giornata è libera</p>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- MONTH VIEW -->
+        <div x-show="view === 'month'" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+          <div class="grid grid-cols-7 gap-1 mb-2">
+            <template x-for="w in ['Lun','Mar','Mer','Gio','Ven','Sab','Dom']" :key="w">
+              <div class="text-center text-xs font-medium text-slate-400 py-2" x-text="w"></div>
+            </template>
+          </div>
+          <div class="grid grid-cols-7 gap-1">
+            <template x-for="cell in monthCells" :key="cell.key">
+              <button type="button"
+                      @click="cell.inMonth && selectDayFromMonth(cell)"
+                      class="aspect-square p-1 rounded-xl text-left transition relative"
+                      :class="{
+                        'opacity-30': !cell.inMonth,
+                        'bg-brand-50 ring-1 ring-brand-200': cell.isToday,
+                        'hover:bg-slate-50': cell.inMonth && !cell.isToday,
+                        'bg-red-50': cell.availability === 'closed' && cell.inMonth
+                      }">
+                <span class="text-xs sm:text-sm font-medium"
+                      :class="cell.isToday ? 'text-brand-700' : 'text-slate-700'"
+                      x-text="cell.day"></span>
+                <div class="flex flex-wrap gap-0.5 mt-0.5">
+                  <template x-for="n in Math.min(cell.count, 3)" :key="n">
+                    <span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>
+                  </template>
+                  <span x-show="cell.count > 3" class="text-[9px] text-slate-400" x-text="'+'+(cell.count-3)"></span>
+                </div>
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+          <span class="font-medium text-slate-600">Disponibilità:</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Orario normale</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Orario modificato</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> Giorno chiuso</span>
+          <span class="mx-2 text-slate-300">|</span>
+          <span class="font-medium text-slate-600">Appuntamenti:</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Confermato</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> In attesa</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-400"></span> Cancellato</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- DAY MENU MODAL -->
+  <div x-show="dayMenuOpen" x-cloak class="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4"
+       @keydown.escape.window="dayMenuOpen = false">
+    <div class="absolute inset-0 bg-black/40" @click="dayMenuOpen = false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 sm:p-6" @click.stop>
+      <h3 class="font-semibold text-slate-900 text-lg mb-1">Disponibilità del giorno</h3>
+      <p class="text-sm text-slate-500 mb-5" x-text="dayMenuDay ? (dayMenuDay.weekday + ' ' + dayMenuDay.dayNum + ' ' + dayMenuDay.month) : ''"></p>
+      <div class="space-y-2">
+        <button @click="setAvailability('normal')" type="button"
+                class="w-full flex items-center gap-3 p-3 rounded-xl border transition text-left"
+                :class="dayMenuDay && dayMenuDay.availability === 'normal' ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'">
+          <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+          <div>
+            <div class="font-medium text-slate-900 text-sm">Orario normale</div>
+            <div class="text-xs text-slate-500">Usa gli orari abituali delle Impostazioni</div>
+          </div>
+        </button>
+        <button @click="setAvailability('modified')" type="button"
+                class="w-full flex items-center gap-3 p-3 rounded-xl border transition text-left"
+                :class="dayMenuDay && dayMenuDay.availability === 'modified' ? 'border-amber-300 bg-amber-50' : 'border-slate-200 hover:border-slate-300'">
+          <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+          <div>
+            <div class="font-medium text-slate-900 text-sm">Orario modificato</div>
+            <div class="text-xs text-slate-500">Imposta fasce diverse solo per questo giorno</div>
+          </div>
+        </button>
+        <button @click="setAvailability('closed')" type="button"
+                class="w-full flex items-center gap-3 p-3 rounded-xl border transition text-left"
+                :class="dayMenuDay && dayMenuDay.availability === 'closed' ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'">
+          <span class="w-3 h-3 rounded-full bg-red-500"></span>
+          <div>
+            <div class="font-medium text-slate-900 text-sm">Giorno chiuso</div>
+            <div class="text-xs text-slate-500">Nessuna disponibilità (ferie, assenza…)</div>
+          </div>
+        </button>
+      </div>
+      <button @click="dayMenuOpen = false" type="button"
+              class="mt-5 w-full py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition">
+        Chiudi
+      </button>
+    </div>
+  </div>
+
+  <!-- APPOINTMENT DETAIL -->
+  <div x-show="selectedApt" x-cloak class="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="selectedApt = null"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-5 sm:p-6" @click.stop x-show="selectedApt">
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h3 class="font-semibold text-slate-900 text-lg" x-text="selectedApt?.client"></h3>
+          <p class="text-sm text-slate-500" x-text="selectedApt?.service"></p>
+        </div>
+        <button @click="selectedApt = null" type="button" class="text-slate-400 hover:text-slate-600 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="space-y-3 text-sm">
+        <div class="flex justify-between py-2 border-b border-slate-100">
+          <span class="text-slate-500">Orario</span>
+          <span class="font-medium text-slate-900" x-text="selectedApt?.time"></span>
+        </div>
+        <div class="flex justify-between py-2 border-b border-slate-100">
+          <span class="text-slate-500">Sede</span>
+          <span class="font-medium text-slate-900" x-text="selectedApt?.location"></span>
+        </div>
+        <div class="flex justify-between py-2 border-b border-slate-100">
+          <span class="text-slate-500">Stato</span>
+          <span class="font-medium px-2 py-0.5 rounded-full text-xs"
+                :class="{
+                  'bg-emerald-100 text-emerald-700': selectedApt?.status === 'confirmed',
+                  'bg-amber-100 text-amber-700': selectedApt?.status === 'pending',
+                  'bg-red-100 text-red-700': selectedApt?.status === 'cancelled'
+                }"
+                x-text="selectedApt ? statusLabel(selectedApt.status) : ''"></span>
+        </div>
+      </div>
+      <div class="mt-5 flex gap-2">
+        <button @click="showToast('Modifica in arrivo')" type="button"
+                class="flex-1 py-2.5 text-sm font-medium border border-slate-200 rounded-xl hover:bg-slate-50">Modifica</button>
+        <button @click="cancelAppointment()" type="button"
+                class="flex-1 py-2.5 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function agenda() {
+      return {
+        studioName: 'Il tuo studio',
+        mobileNavOpen: false,
+        view: 'week',
+        toast: null,
+        toastOk: true,
+        dayMenuOpen: false,
+        dayMenuDay: null,
+        selectedApt: null,
+        weekOffset: 0,
+        hours: [8,9,10,11,12,13,14,15,16,17,18],
+        loading: true,
+        appointments: [],
+        availabilityMap: {},
+        services: [],
+        locations: [],
+        workingHours: [],
+
+        async init() {
+          try {
+            await this.loadMeta();
+            await this.loadAppointments();
+          } catch (e) {
+            console.error(e);
+            this.showToast('Errore caricamento agenda', false);
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async loadMeta() {
+          const res = await fetch('/api/agenda/meta');
+          if (res.status === 401) { window.location.href = '/login'; return; }
+          if (!res.ok) throw new Error('meta failed');
+          const data = await res.json();
+          this.studioName = (data.tenant && data.tenant.business_name) || 'Il tuo studio';
+          this.locations = data.locations || [];
+          this.workingHours = data.working_hours || [];
+          this.services = data.services || [];
+          const map = {};
+          (data.exceptions || []).forEach(ex => {
+            if (!ex.date) return;
+            // closed → closed; closed_period → modified
+            map[ex.date] = ex.type === 'closed_period' ? 'modified' : 'closed';
+          });
+          this.availabilityMap = map;
+        },
+
+        async loadAppointments() {
+          const days = this.computeWeekDays(this.weekOffset);
+          if (!days.length) return;
+          const dateFrom = days[0].date;
+          const dateTo = days[6].date;
+          const res = await fetch(`/api/agenda/appointments?date_from=${dateFrom}&date_to=${dateTo}`);
+          if (res.status === 401) { window.location.href = '/login'; return; }
+          if (!res.ok) throw new Error('appointments failed');
+          const data = await res.json();
+          const svcMap = {};
+          (this.services || []).forEach(s => { if (s.name) svcMap[s.name.toLowerCase()] = s.duration_minutes || 30; });
+          this.appointments = (data.appointments || []).map(a => {
+            const dur = svcMap[(a.service || '').toLowerCase()] || 30;
+            const start = a.start || '09:00';
+            const [hh, mm] = start.split(':').map(Number);
+            const endMin = hh * 60 + mm + dur;
+            const end = String(Math.floor(endMin/60)).padStart(2,'0') + ':' + String(endMin%60).padStart(2,'0');
+            return {
+              id: a.id,
+              date: a.date,
+              start,
+              end,
+              client: a.client || 'Cliente',
+              service: a.service || 'Appuntamento',
+              location: (this.locations[0] && this.locations[0].name) || '',
+              status: a.status === 'cancelled' ? 'cancelled' : (a.status === 'pending' ? 'pending' : 'confirmed'),
+              time: start + ' – ' + end,
+              phone: a.phone,
+            };
+          });
+        },
+
+        get today() {
+          const d = new Date();
+          d.setHours(0,0,0,0);
+          return d;
+        },
+
+        computeWeekDays(offset) {
+          const start = this.weekStart(offset);
+          const days = [];
+          const names = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+          const months = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+          const todayIso = this.toISO(this.today);
+          for (let i = 0; i < 7; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            const iso = this.toISO(d);
+            days.push({
+              date: iso,
+              weekday: names[d.getDay()],
+              dayNum: d.getDate(),
+              month: months[d.getMonth()],
+              isToday: iso === todayIso,
+              availability: this.availabilityMap[iso] || (d.getDay() === 0 ? 'closed' : 'normal'),
+            });
+          }
+          return days;
+        },
+
+        get weekDays() {
+          return this.computeWeekDays(this.weekOffset);
+        },
+
+        get selectedDay() {
+          return this.weekDays.find(d => d.isToday) || this.weekDays[0];
+        },
+
+        get selectedDayLabel() {
+          const d = this.selectedDay;
+          return d ? d.weekday + ' ' + d.dayNum + ' ' + d.month : '';
+        },
+
+        get periodLabel() {
+          if (this.view === 'month') {
+            const d = new Date(this.today);
+            d.setDate(d.getDate() + this.weekOffset * 7);
+            const months = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+            return months[d.getMonth()] + ' ' + d.getFullYear();
+          }
+          const days = this.weekDays;
+          if (!days.length) return '';
+          return days[0].dayNum + ' – ' + days[6].dayNum + ' ' + days[6].month;
+        },
+
+        get viewLabel() {
+          return this.view === 'week' ? 'Settimana' : (this.view === 'day' ? 'Giorno' : 'Mese');
+        },
+
+        get isTodayVisible() {
+          return this.weekDays.some(d => d.isToday);
+        },
+
+        get monthCells() {
+          const base = new Date(this.today);
+          base.setDate(base.getDate() + this.weekOffset * 7);
+          const year = base.getFullYear();
+          const month = base.getMonth();
+          const first = new Date(year, month, 1);
+          let startDow = first.getDay(); // 0=Sun
+          startDow = startDow === 0 ? 6 : startDow - 1; // Mon-based
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+          const cells = [];
+          const todayIso = this.toISO(this.today);
+          for (let i = 0; i < startDow; i++) {
+            cells.push({ key: 'p'+i, day: '', inMonth: false, count: 0, isToday: false, availability: 'normal' });
+          }
+          for (let day = 1; day <= daysInMonth; day++) {
+            const iso = year + '-' + String(month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+            const count = this.appointments.filter(a => a.date === iso && a.status !== 'cancelled').length;
+            const d = new Date(year, month, day);
+            cells.push({
+              key: iso, day, inMonth: true, count,
+              isToday: iso === todayIso,
+              availability: this.availabilityMap[iso] || (d.getDay() === 0 ? 'closed' : 'normal'),
+              date: iso,
+            });
+          }
+          return cells;
+        },
+
+        weekStart(offset) {
+          const d = new Date(this.today);
+          d.setDate(d.getDate() + offset * 7);
+          const day = d.getDay();
+          const diff = day === 0 ? -6 : 1 - day;
+          d.setDate(d.getDate() + diff);
+          d.setHours(0,0,0,0);
+          return d;
+        },
+
+        toISO(d) {
+          return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        },
+
+        async prevPeriod() {
+          this.weekOffset--;
+          await this.loadAppointments();
+        },
+        async nextPeriod() {
+          this.weekOffset++;
+          await this.loadAppointments();
+        },
+        async goToday() {
+          this.weekOffset = 0;
+          this.view = 'week';
+          await this.loadAppointments();
+        },
+
+        appointmentsFor(date) {
+          return this.appointments.filter(a => a.date === date);
+        },
+
+        availLabel(a) {
+          return { normal: 'Normale', modified: 'Modificato', closed: 'Chiuso' }[a] || a;
+        },
+
+        statusLabel(s) {
+          return { confirmed: 'Confermato', pending: 'In attesa', cancelled: 'Cancellato', completed: 'Completato' }[s] || s;
+        },
+
+        aptColor(status) {
+          return {
+            confirmed: 'bg-brand-100 border-brand-200 text-brand-900',
+            pending: 'bg-amber-50 border-amber-200 text-amber-900',
+            cancelled: 'bg-red-50 border-red-200 text-red-800 line-through opacity-70',
+            completed: 'bg-slate-100 border-slate-200 text-slate-700',
+          }[status] || 'bg-slate-100 border-slate-200';
+        },
+
+        aptStyle(apt) {
+          const [sh, sm] = apt.start.split(':').map(Number);
+          const [eh, em] = (apt.end || apt.start).split(':').map(Number);
+          const startMin = sh * 60 + (sm || 0);
+          const endMin = eh * 60 + (em || 0);
+          const gridStart = 8 * 60;
+          const hourH = 56;
+          const top = ((startMin - gridStart) / 60) * hourH;
+          const height = Math.max(((endMin - startMin) / 60) * hourH - 4, 24);
+          return 'top: ' + top + 'px; height: ' + height + 'px;';
+        },
+
+        openDayMenu(day) {
+          this.dayMenuDay = day;
+          this.dayMenuOpen = true;
+        },
+
+        async setAvailability(type) {
+          if (!this.dayMenuDay) return;
+          const date = this.dayMenuDay.date;
+          const payload = { date, type: type === 'modified' ? 'closed_period' : (type === 'closed' ? 'closed' : 'normal') };
+          if (type === 'modified') {
+            payload.start_time = '09:00';
+            payload.end_time = '13:00';
+            payload.reason = 'Orario modificato';
+          }
+          try {
+            const res = await fetch('/api/agenda/availability', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (res.status === 401) { window.location.href = '/login'; return; }
+            if (!res.ok) throw new Error('save failed');
+            if (type === 'normal') delete this.availabilityMap[date];
+            else this.availabilityMap[date] = type;
+            this.availabilityMap = { ...this.availabilityMap };
+            this.dayMenuOpen = false;
+            this.showToast('Disponibilità aggiornata');
+          } catch (e) {
+            this.showToast('Errore salvataggio', false);
+          }
+        },
+
+        selectAppointment(apt) {
+          this.selectedApt = apt;
+        },
+
+        async cancelAppointment() {
+          if (!this.selectedApt) return;
+          try {
+            const res = await fetch('/api/agenda/appointments/' + this.selectedApt.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'cancelled' }),
+            });
+            if (!res.ok) throw new Error('fail');
+            this.selectedApt = null;
+            await this.loadAppointments();
+            this.showToast('Appuntamento annullato');
+          } catch (e) {
+            this.showToast('Errore annullamento', false);
+          }
+        },
+
+        selectDayFromMonth(cell) {
+          const d = new Date(cell.date + 'T12:00:00');
+          const today = this.today;
+          const diffDays = Math.round((d - today) / 86400000);
+          this.weekOffset = Math.floor(diffDays / 7);
+          this.view = 'day';
+          this.loadAppointments();
+        },
+
+        showToast(msg, ok = true) {
+          this.toast = msg;
+          this.toastOk = ok;
+          setTimeout(() => { this.toast = null; }, 2800);
+        },
+      }
+    }
+  </script>
+  </script>
+</body>
+</html>

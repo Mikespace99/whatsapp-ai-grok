@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Configura il tuo studio – AI Booking</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    [x-cloak] { display: none !important; }
+    /* Soft scrollbar */
+    .soft-scroll::-webkit-scrollbar { width: 6px; }
+    .soft-scroll::-webkit-scrollbar-track { background: transparent; }
+    .soft-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    /* Safe area for mobile */
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+  </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased" x-data="onboarding()" x-init="init()">
+
+  <!-- Toast -->
+  <div x-show="toast" x-cloak x-transition
+       class="fixed top-4 right-4 z-[60] px-4 py-3 rounded-xl shadow-lg text-sm font-medium max-w-sm"
+       :class="toastOk ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'"
+       x-text="toast"></div>
+
+  <!-- ===================== MOBILE TOP BAR ===================== -->
+  <header class="lg:hidden sticky top-0 z-40 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between safe-top">
+    <div class="flex items-center gap-3">
+      <button @click="mobileNavOpen = !mobileNavOpen" type="button"
+              class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+      <div>
+        <div class="font-semibold text-slate-900 text-sm leading-tight">AI Booking</div>
+        <div class="text-xs text-slate-500" x-text="steps[currentStep].short"></div>
+      </div>
+    </div>
+    <div class="text-xs font-medium text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full"
+         x-text="`${currentStep + 1}/${steps.length}`"></div>
+  </header>
+
+  <!-- Mobile overlay -->
+  <div x-show="mobileNavOpen" x-cloak
+       @click="mobileNavOpen = false"
+       class="lg:hidden fixed inset-0 bg-black/40 z-40" x-transition.opacity></div>
+
+  <div class="flex min-h-screen lg:min-h-0">
+
+    <!-- ===================== SIDEBAR (Desktop + Mobile drawer) ===================== -->
+    <aside
+      class="fixed lg:sticky top-0 left-0 z-50 lg:z-30 h-full lg:h-screen w-72 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ease-out"
+      :class="mobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'">
+
+      <!-- Logo -->
+      <div class="px-5 py-5 border-b border-slate-100 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-brand-200">A</div>
+        <div>
+          <div class="font-semibold text-slate-900">AI Booking</div>
+          <div class="text-xs text-slate-500">Configurazione studio</div>
+        </div>
+      </div>
+
+      <!-- Studio name live -->
+      <div class="px-5 py-3 border-b border-slate-100">
+        <div class="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Studio</div>
+        <div class="font-medium text-slate-800 truncate" x-text="tenant.business_name || 'Il tuo studio'"></div>
+      </div>
+
+      <!-- Steps navigation (clickable) -->
+      <nav class="flex-1 overflow-y-auto soft-scroll py-4 px-3 space-y-1">
+        <template x-for="(step, idx) in steps" :key="idx">
+          <button type="button"
+                  @click="goToStep(idx)"
+                  class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group"
+                  :class="currentStep === idx
+                    ? 'bg-brand-50 text-brand-700 shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'">
+            <!-- Number / Check -->
+            <span class="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-semibold transition-colors"
+                  :class="currentStep === idx
+                    ? 'bg-brand-600 text-white'
+                    : (stepCompleted[idx] ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500')">
+              <template x-if="stepCompleted[idx] && currentStep !== idx">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+              </template>
+              <template x-if="!(stepCompleted[idx] && currentStep !== idx)">
+                <span x-text="idx + 1"></span>
+              </template>
+            </span>
+            <span class="flex-1 min-w-0">
+              <span class="block text-sm font-medium truncate" x-text="step.short"></span>
+              <span class="block text-xs opacity-70 truncate" x-text="step.title" x-show="currentStep === idx"></span>
+            </span>
+          </button>
+        </template>
+      </nav>
+
+      <!-- Bottom actions -->
+      <div class="p-4 border-t border-slate-100 space-y-1">
+        <button @click="save(false)" type="button" :disabled="saving"
+                class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+          </svg>
+          <span x-text="saving ? 'Salvataggio…' : 'Salva bozza'"></span>
+        </button>
+        <a href="/logout" class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-red-50 hover:text-red-600 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          Esci
+        </a>
+      </div>
+    </aside>
+
+    <!-- ===================== MAIN CONTENT ===================== -->
+    <main class="flex-1 min-w-0 flex flex-col min-h-screen lg:min-h-0">
+
+      <!-- Desktop header -->
+      <header class="hidden lg:flex sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-4 items-center justify-between">
+        <div>
+          <h1 class="text-xl font-bold text-slate-900" x-text="steps[currentStep].title"></h1>
+          <p class="text-sm text-slate-500 mt-0.5">Configura il tuo studio in pochi passaggi. Puoi tornare indietro in qualsiasi momento.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-slate-500" x-text="tenant.business_name || 'Il tuo studio'"></span>
+          <span class="text-xs font-medium text-brand-700 bg-brand-50 px-3 py-1 rounded-full"
+                x-text="`Passo ${currentStep + 1} di ${steps.length}`"></span>
+        </div>
+      </header>
+
+      <!-- Content area -->
+      <div class="flex-1 overflow-y-auto">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+          <!-- Loading -->
+          <div x-show="loading" class="text-center py-24 text-slate-500">
+            <div class="inline-block w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p>Caricamento configurazione…</p>
+          </div>
+
+          <div x-show="!loading" x-cloak>
+
+            <!-- ========== STEP 0: DATI ========== -->
+            <div x-show="currentStep === 0" class="space-y-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8">
+                <div class="flex items-start gap-4 mb-6">
+                  <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                  </div>
+                  <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Dati dello studio</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Informazioni principali che vedranno i tuoi clienti.</p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Nome studio / attività <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="tenant.business_name"
+                           class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Tipologia / specializzazione <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="tenant.specialty"
+                           placeholder="Es. Dermatologo, Ortopedico, Avvocato Civilista…"
+                           class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition">
+                    <p class="mt-1 text-xs text-slate-400">Es. Specialista Dermatologo, Ortopedico, Avvocato Civilista…</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Nome assistente AI</label>
+                    <input type="text" x-model="tenant.assistant_name"
+                           class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+                    <input type="email" x-model="tenant.email"
+                           class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Telefono studio</label>
+                    <div class="flex">
+                      <span class="inline-flex items-center px-3.5 rounded-l-xl border border-r-0 border-slate-300 bg-slate-50 text-slate-500 text-sm select-none">+39</span>
+                      <input type="text" x-model="tenant.phone" placeholder="02 1234567"
+                             class="flex-1 rounded-r-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Timezone <span class="text-red-500">*</span></label>
+                    <select x-model="tenant.timezone"
+                            class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition">
+                      <option value="Europe/Rome">Europe/Rome</option>
+                    </select>
+                    <p class="mt-1 text-xs text-slate-400">Al momento disponibile solo Italia</p>
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Numero WhatsApp Business <span class="text-red-500">*</span></label>
+                    <div class="flex flex-col sm:flex-row gap-2 sm:items-start">
+                      <div class="flex flex-1">
+                        <span class="inline-flex items-center px-3.5 rounded-l-xl border border-r-0 border-slate-300 bg-slate-50 text-slate-500 text-sm select-none">+39</span>
+                        <input type="text" x-model="tenant.whatsapp_number" placeholder="3331234567"
+                               class="flex-1 rounded-r-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition">
+                      </div>
+                      <span class="inline-flex items-center px-3 py-2.5 rounded-xl bg-amber-50 text-amber-700 text-xs font-medium border border-amber-200 whitespace-nowrap">Importante</span>
+                    </div>
+                    <p class="mt-1.5 text-xs text-slate-400">Inserisci solo le cifre senza +39. Questo numero identifica lo studio su WhatsApp.</p>
+                  </div>
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-slate-100">
+                  <h3 class="text-sm font-semibold text-slate-900 mb-4">Policy di prenotazione</h3>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-sm text-slate-600 mb-1.5">Anticipo minimo (ore)</label>
+                      <input type="number" x-model.number="tenant.min_lead_hours"
+                             class="w-full sm:w-28 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                    </div>
+                    <div>
+                      <label class="block text-sm text-slate-600 mb-1.5">Giorni massimi ricerca</label>
+                      <input type="number" x-model.number="tenant.slot_search_days"
+                             class="w-full sm:w-28 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                    </div>
+                    <div>
+                      <label class="block text-sm text-slate-600 mb-1.5">Max appuntamenti / giorno</label>
+                      <input type="number" x-model.number="tenant.max_appointments_per_day"
+                             class="w-full sm:w-28 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                    </div>
+                  </div>
+                </div>
+                <p class="mt-6 text-xs text-slate-400"><span class="text-red-500">*</span> Campo obbligatorio</p>
+              </div>
+            </div>
+
+            <!-- ========== STEP 1: SEDI ========== -->
+            <div x-show="currentStep === 1" class="space-y-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+                  <div class="flex items-start gap-4">
+                    <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <div>
+                      <h2 class="text-lg font-semibold text-slate-900">Le tue sedi</h2>
+                      <p class="text-sm text-slate-500 mt-0.5">Puoi lavorare in più luoghi. Nella stessa giornata puoi avere fasce in sedi diverse.</p>
+                    </div>
+                  </div>
+                  <button @click="addLocation()" type="button"
+                          class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-xl hover:bg-brand-700 transition shadow-sm shadow-brand-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Aggiungi sede
+                  </button>
+                </div>
+
+                <div class="space-y-4">
+                  <template x-for="(loc, idx) in locations" :key="loc._key">
+                    <div class="border border-slate-200 rounded-2xl p-4 sm:p-5 hover:border-slate-300 transition">
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Nome sede <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="loc.name"
+                                   class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                          </div>
+                          <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Città <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="loc.city"
+                                   class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                          </div>
+                          <div class="sm:col-span-2">
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Indirizzo completo</label>
+                            <input type="text" x-model="loc.address"
+                                   class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                          </div>
+                        </div>
+                        <button @click="removeLocation(idx)" type="button" class="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition" x-show="locations.length > 1">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </div>
+                      <div class="mt-3 flex items-center gap-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                              :class="loc.active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'"
+                              x-text="loc.active ? 'Attiva' : 'Disattiva'"></span>
+                        <button @click="loc.active = !loc.active" type="button" class="text-xs text-brand-600 hover:underline">cambia stato</button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <div class="bg-brand-50 border border-brand-100 rounded-2xl p-4 text-sm text-brand-800">
+                <strong>Come funziona:</strong> puoi avere più sedi. Nella stessa giornata è possibile definire fasce orarie in sedi diverse (es. mattina a Milano Centro, pomeriggio a Roma Eur). Il calendario Google resta unico per tutto lo studio.
+              </div>
+            </div>
+
+            <!-- ========== STEP 2: ORARI ========== -->
+            <div x-show="currentStep === 2" class="space-y-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8">
+                <div class="flex items-start gap-4 mb-6">
+                  <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </div>
+                  <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Orari di lavoro abituali</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Queste fasce si ripetono ogni settimana. Le eccezioni (ferie, chiusure, orari speciali) le gestirai dall&rsquo;Agenda.</p>
+                  </div>
+                </div>
+
+                <div class="space-y-3">
+                  <template x-for="(day, dIdx) in weekDays" :key="day.key">
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden">
+                      <div class="bg-slate-50 px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
+                        <span class="font-medium text-slate-900 w-24" x-text="day.label"></span>
+                        <div class="flex items-center gap-2">
+                          <button @click="addSlot(dIdx)" type="button" class="text-sm text-brand-600 hover:text-brand-800 font-medium">+ Aggiungi fascia</button>
+                          <button @click="clearDay(dIdx)" type="button" class="text-sm text-slate-500 hover:text-red-600" x-show="day.slots.length > 0">Svuota</button>
+                        </div>
+                      </div>
+                      <div class="px-4 py-3 space-y-3">
+                        <template x-if="day.slots.length === 0">
+                          <p class="text-sm text-slate-400 italic">Giorno di chiusura.</p>
+                        </template>
+                        <template x-for="(slot, sIdx) in day.slots" :key="sIdx">
+                          <div class="flex flex-wrap items-center gap-2 sm:gap-3 p-3 bg-slate-50 rounded-xl">
+                            <select x-model="slot.location_id"
+                                    class="rounded-lg border border-slate-300 text-sm px-3 py-1.5 min-w-[140px] focus:ring-2 focus:ring-brand-500">
+                              <option value="">— Scegli sede —</option>
+                              <template x-for="loc in locations" :key="loc.id || loc._key">
+                                <option :value="loc.id || loc._key" x-text="loc.name" :disabled="!loc.active"></option>
+                              </template>
+                            </select>
+                            <input type="time" x-model="slot.start_time" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-brand-500">
+                            <span class="text-slate-400 hidden sm:inline">→</span>
+                            <input type="time" x-model="slot.end_time" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-brand-500">
+                            <button @click="removeSlot(dIdx, sIdx)" type="button" class="text-slate-400 hover:text-red-500 p-1 ml-auto">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+
+                <div class="mt-5">
+                  <button @click="copyToWeekdays()" type="button"
+                          class="text-sm px-4 py-2 border border-slate-300 rounded-xl hover:bg-slate-50 transition">
+                    Copia lunedì su tutti i feriali
+                  </button>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">Anteprima orari</h3>
+                <div class="text-sm text-slate-600 leading-relaxed space-y-1" x-html="generatedHoursText()"></div>
+              </div>
+            </div>
+
+            <!-- ========== STEP 3: SERVIZI ========== -->
+            <div x-show="currentStep === 3" class="space-y-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+                  <div class="flex items-start gap-4">
+                    <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    </div>
+                    <div>
+                      <h2 class="text-lg font-semibold text-slate-900">Servizi offerti</h2>
+                      <p class="text-sm text-slate-500 mt-0.5">Durata + buffer determinano quanto spazio riservare nel calendario.</p>
+                    </div>
+                  </div>
+                  <button @click="addService()" type="button"
+                          class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-xl hover:bg-brand-700 transition shadow-sm shadow-brand-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Aggiungi servizio
+                  </button>
+                </div>
+
+                <div class="space-y-4">
+                  <template x-for="(svc, idx) in services" :key="svc._key">
+                    <div class="border border-slate-200 rounded-2xl p-4 sm:p-5">
+                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="sm:col-span-2">
+                          <label class="block text-xs font-medium text-slate-500 mb-1">Nome servizio <span class="text-red-500">*</span></label>
+                          <input type="text" x-model="svc.name"
+                                 class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-slate-500 mb-1">Durata (min) <span class="text-red-500">*</span></label>
+                          <input type="number" x-model.number="svc.duration_minutes"
+                                 class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-slate-500 mb-1">Prezzo (€)</label>
+                          <input type="number" x-model.number="svc.price" placeholder="opzionale"
+                                 class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-slate-500 mb-1">Buffer prima (min)</label>
+                          <input type="number" x-model.number="svc.buffer_before"
+                                 class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-slate-500 mb-1">Buffer dopo (min)</label>
+                          <input type="number" x-model.number="svc.buffer_after"
+                                 class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                        </div>
+                        <div class="sm:col-span-2 flex items-end gap-3">
+                          <label class="inline-flex items-center gap-2 text-sm cursor-pointer">
+                            <input type="checkbox" x-model="svc.active" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                            Attivo
+                          </label>
+                          <button @click="removeService(idx)" type="button" class="text-sm text-red-500 hover:underline ml-auto" x-show="services.length > 1">Elimina</button>
+                        </div>
+                      </div>
+                      <div class="mt-3">
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Descrizione</label>
+                        <textarea x-model="svc.description" rows="2" placeholder="Breve descrizione (opzionale)"
+                                  class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 transition"></textarea>
+                      </div>
+                      <div class="mt-3 bg-slate-50 rounded-xl px-3 py-2 text-xs text-slate-600">
+                        Spazio totale riservato:
+                        <span class="font-mono font-medium text-slate-900" x-text="`${(svc.buffer_before||0)+(svc.duration_minutes||0)+(svc.buffer_after||0)} min`"></span>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- ========== STEP 4: CHIUSURE ========== -->
+            <div x-show="currentStep === 4" class="space-y-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8">
+                <div class="flex items-start gap-4 mb-6">
+                  <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  </div>
+                  <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Chiusure e festività</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Festività nazionali e eventuali chiusure ricorrenti. Le chiusure di singoli giorni (ferie, assenze) le gestirai dall&rsquo;Agenda.</p>
+                  </div>
+                </div>
+
+                <div class="space-y-3 mb-5">
+                  <template x-for="(ex, idx) in exceptions" :key="idx">
+                    <div class="flex flex-wrap items-center gap-2 sm:gap-3 p-3 border border-slate-200 rounded-xl">
+                      <input type="date" x-model="ex.date" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-brand-500">
+                      <select x-model="ex.type" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-brand-500">
+                        <option value="closed">Giorno intero chiuso</option>
+                        <option value="closed_period">Solo fascia oraria</option>
+                      </select>
+                      <template x-if="ex.type === 'closed_period'">
+                        <div class="flex items-center gap-2">
+                          <input type="time" x-model="ex.start_time" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+                          <span class="text-slate-400">→</span>
+                          <input type="time" x-model="ex.end_time" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+                        </div>
+                      </template>
+                      <input type="text" x-model="ex.reason" placeholder="Motivo (opzionale)"
+                             class="flex-1 min-w-[120px] rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-brand-500">
+                      <button @click="exceptions.splice(idx,1)" type="button" class="text-slate-400 hover:text-red-500 p-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+                  </template>
+                </div>
+                <button @click="exceptions.push({date:'', type:'closed', start_time:'', end_time:'', reason:''})" type="button"
+                        class="text-sm text-brand-600 font-medium hover:underline">+ Aggiungi chiusura</button>
+              </div>
+
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8">
+                <h2 class="text-lg font-semibold text-slate-900 mb-1">Festività nazionali</h2>
+                <p class="text-sm text-slate-500 mb-4">Calendario di riferimento: <strong>Italia</strong>.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-72 overflow-y-auto soft-scroll pr-1">
+                  <template x-for="h in holidays" :key="h.id">
+                    <label class="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer transition">
+                      <input type="checkbox" x-model="h.enabled" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                      <span class="text-sm flex-1" x-text="h.name"></span>
+                      <span class="text-xs text-slate-400" x-text="h.date"></span>
+                    </label>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- ========== STEP 5: INTEGRAZIONI ========== -->
+            <div x-show="currentStep === 5" class="space-y-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8">
+                <div class="flex items-start gap-4 mb-6">
+                  <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  </div>
+                  <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Google Calendar</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Un solo calendario per tutto lo studio.</p>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1.5">Google Calendar ID</label>
+                  <input type="text" x-model="tenant.google_calendar_id"
+                         placeholder="es. michele.serpico@gmail.com oppure ID calendario"
+                         class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                  <p class="mt-1.5 text-xs text-slate-400">
+                    Google Calendar → Impostazioni del calendario → “ID calendario”.
+                    Il calendario deve essere condiviso con l’account collegato a n8n.
+                  </p>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8">
+                <div class="flex items-start gap-4 mb-6">
+                  <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  </div>
+                  <div>
+                    <h2 class="text-lg font-semibold text-slate-900">WhatsApp</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Credenziali del numero Business (da Meta Developer).</p>
+                  </div>
+                </div>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Numero WhatsApp</label>
+                    <div class="text-sm text-slate-600" x-text="tenant.whatsapp_number ? ('+39 ' + tenant.whatsapp_number) : 'Impostalo nella sezione Dati'"></div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Phone Number ID</label>
+                    <input type="text" x-model="tenant.phone_number_id" placeholder="Es. 123456789012345"
+                           class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                    <p class="mt-1 text-xs text-slate-400">Lo trovi in Meta → WhatsApp → API Setup</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Access Token</label>
+                    <input type="password" x-model="tenant.access_token" placeholder="Token permanente o temporaneo"
+                           class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 transition">
+                    <p class="mt-1 text-xs text-slate-400">Token con permessi whatsapp_business_messaging. Lascia vuoto per usare quello globale del server.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ========== STEP 6: ANTEPRIMA ========== -->
+            <div x-show="currentStep === 6" class="space-y-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8">
+                <div class="flex items-start gap-4 mb-6">
+                  <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </div>
+                  <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Riepilogo configurazione</h2>
+                    <p class="text-sm text-slate-500 mt-0.5">Controlla che tutto sia corretto prima di attivare.</p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                  <div class="p-4 bg-slate-50 rounded-xl">
+                    <h3 class="font-medium text-slate-900 mb-2">Studio</h3>
+                    <p class="text-slate-700 font-medium" x-text="tenant.business_name || '—'"></p>
+                    <p class="text-slate-500" x-text="tenant.specialty || '—'"></p>
+                    <p class="text-slate-500 mt-1" x-text="tenant.assistant_name ? 'Assistente: ' + tenant.assistant_name : ''"></p>
+                  </div>
+                  <div class="p-4 bg-slate-50 rounded-xl">
+                    <h3 class="font-medium text-slate-900 mb-2">Sedi</h3>
+                    <ul class="space-y-1 text-slate-600">
+                      <template x-for="loc in locations" :key="loc._key">
+                        <li x-text="`${loc.name}${loc.city ? ' – ' + loc.city : ''}`"></li>
+                      </template>
+                    </ul>
+                  </div>
+                  <div class="p-4 bg-slate-50 rounded-xl">
+                    <h3 class="font-medium text-slate-900 mb-2">Servizi attivi</h3>
+                    <ul class="space-y-1 text-slate-600">
+                      <template x-for="svc in services.filter(s => s.active)" :key="svc._key">
+                        <li x-text="`${svc.name} (${svc.duration_minutes} min)`"></li>
+                      </template>
+                    </ul>
+                  </div>
+                  <div class="p-4 bg-slate-50 rounded-xl md:col-span-2">
+                    <h3 class="font-medium text-slate-900 mb-2">Orari</h3>
+                    <div class="text-slate-600 leading-relaxed space-y-1" x-html="generatedHoursText()"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-gradient-to-br from-brand-50 to-sky-50 border border-brand-200 rounded-2xl p-6 sm:p-8">
+                <h3 class="font-semibold text-brand-900 text-lg mb-2">Pronto per andare live?</h3>
+                <p class="text-sm text-brand-800 mb-5">Dopo il salvataggio i dati saranno disponibili per WhatsApp e per il sistema di prenotazione. Potrai sempre modificare le impostazioni in seguito.</p>
+                <button @click="save(true)" type="button" :disabled="saving"
+                        class="w-full sm:w-auto px-6 py-3 bg-brand-600 text-white font-medium rounded-xl hover:bg-brand-700 disabled:opacity-50 transition shadow-md shadow-brand-200">
+                  <span x-text="saving ? 'Salvataggio…' : 'Completa configurazione e attiva'"></span>
+                </button>
+              </div>
+            </div>
+
+            <!-- ========== FOOTER ACTIONS ========== -->
+            <div class="mt-8 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-8 safe-bottom">
+              <button @click="prev()" type="button" :disabled="currentStep === 0"
+                      class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-medium hover:bg-white disabled:opacity-40 transition">
+                Indietro
+              </button>
+              <div class="flex gap-3">
+                <button @click="save(false)" type="button" :disabled="saving"
+                        class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-slate-600 hover:bg-white font-medium disabled:opacity-50 transition border border-transparent hover:border-slate-200">
+                  <span x-text="saving ? 'Salvo…' : 'Salva bozza'"></span>
+                </button>
+                <button @click="next()" type="button" x-show="currentStep < steps.length - 1"
+                        class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-brand-600 text-white font-medium hover:bg-brand-700 transition shadow-sm shadow-brand-200">
+                  Continua
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function onboarding() {
+      return {
+        loading: true,
+        saving: false,
+        toast: null,
+        toastOk: true,
+        currentStep: 0,
+        mobileNavOpen: false,
+        stepCompleted: {},
+
+        steps: [
+          { title: 'Dati dello studio', short: 'Dati' },
+          { title: 'Sedi', short: 'Sedi' },
+          { title: 'Orari di lavoro abituali', short: 'Orari' },
+          { title: 'Servizi', short: 'Servizi' },
+          { title: 'Chiusure e festività', short: 'Chiusure' },
+          { title: 'Integrazioni', short: 'Integrazioni' },
+          { title: 'Anteprima e attivazione', short: 'Anteprima' },
+        ],
+
+        tenant: {
+          business_name: '', specialty: '', assistant_name: 'Assistente',
+          timezone: 'Europe/Rome', language: 'it',
+          min_lead_hours: 2, slot_search_days: 30, max_appointments_per_day: 12,
+          phone: '', whatsapp_number: '', email: '', phone_number_id: '', access_token: '', google_calendar_id: '',
+        },
+        locations: [],
+        weekDays: [
+          { key:'mon', label:'Lunedì', day_of_week:1, slots:[] },
+          { key:'tue', label:'Martedì', day_of_week:2, slots:[] },
+          { key:'wed', label:'Mercoledì', day_of_week:3, slots:[] },
+          { key:'thu', label:'Giovedì', day_of_week:4, slots:[] },
+          { key:'fri', label:'Venerdì', day_of_week:5, slots:[] },
+          { key:'sat', label:'Sabato', day_of_week:6, slots:[] },
+          { key:'sun', label:'Domenica', day_of_week:7, slots:[] },
+        ],
+        services: [],
+        exceptions: [],
+        holidays: [],
+
+        goToStep(idx) {
+          this.currentStep = idx;
+          this.mobileNavOpen = false;
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+
+        isStepValid(idx) {
+          if (idx === 0) {
+            const t = this.tenant;
+            return !!(t.business_name && t.business_name.trim()
+              && t.specialty && t.specialty.trim()
+              && t.whatsapp_number && String(t.whatsapp_number).trim()
+              && t.timezone);
+          }
+          if (idx === 1) {
+            return this.locations.some(l => l.active !== false && l.name && l.name.trim() && l.city && l.city.trim());
+          }
+          if (idx === 2) {
+            return this.weekDays.some(d => d.slots && d.slots.length > 0
+              && d.slots.some(s => s.start_time && s.end_time && s.location_id));
+          }
+          if (idx === 3) {
+            return this.services.some(s => s.active !== false && s.name && s.name.trim() && s.duration_minutes > 0);
+          }
+          // 4 Chiusure, 5 Integrazioni, 6 Anteprima: opzionali
+          return true;
+        },
+
+        updateStepCompletion() {
+          const next = {};
+          for (let i = 0; i < this.steps.length; i++) {
+            next[i] = this.isStepValid(i);
+          }
+          this.stepCompleted = next;
+        },
+
+        async init() {
+          try {
+            const res = await fetch('/api/config');
+            if (res.status === 401) { window.location.href = '/login'; return; }
+            const data = await res.json();
+            this.applyConfig(data);
+            // Non marchiamo completati al solo caricamento: serve salvataggio esplicito
+          } catch (e) {
+            this.showToast('Errore nel caricamento', false);
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        applyConfig(data) {
+          const t = data.tenant || {};
+          const info = t.info || {};
+          this.tenant = {
+            business_name: t.business_name || '',
+            specialty: t.specialty || '',
+            assistant_name: t.assistant_name || 'Assistente',
+            timezone: t.timezone || 'Europe/Rome',
+            language: t.language || 'it',
+            min_lead_hours: t.min_lead_hours ?? 2,
+            slot_search_days: t.slot_search_days ?? 30,
+            max_appointments_per_day: t.max_appointments_per_day ?? 12,
+            phone: (info.phone || '').replace(/^\+39/, ''),
+            whatsapp_number: (info.whatsapp_number || '').replace(/^\+39/, ''),
+            email: info.email || '',
+            phone_number_id: info.phone_number_id || '',
+            access_token: info.access_token || '',
+            google_calendar_id: t.google_calendar_id || info.google_calendar_id || '',
+          };
+          this.locations = (data.locations || []).map((l, i) => ({
+            ...l, _key: l.id || ('new'+i), active: l.active !== false
+          }));
+          if (this.locations.length === 0) {
+            this.locations = [{ _key: 'new0', name: 'Sede principale', city: '', address: '', active: true }];
+          }
+          const byDay = {};
+          (data.working_hours || []).forEach(wh => {
+            const d = wh.day_of_week;
+            if (!byDay[d]) byDay[d] = [];
+            byDay[d].push({
+              location_id: wh.location_id,
+              start_time: (wh.start_time || '').slice(0,5),
+              end_time: (wh.end_time || '').slice(0,5),
+            });
+          });
+          this.weekDays.forEach(day => { day.slots = byDay[day.day_of_week] || []; });
+          this.services = (data.services || []).map((s, i) => ({
+            ...s, _key: s.id || ('svc'+i),
+            duration_minutes: s.duration_minutes ?? 30,
+            buffer_before: s.buffer_before ?? 0,
+            buffer_after: s.buffer_after ?? 5,
+            active: s.active !== false,
+          }));
+          if (this.services.length === 0) {
+            this.services = [{
+              _key: 'svc0', name: 'Visita', duration_minutes: 30,
+              buffer_before: 0, buffer_after: 5, price: null, active: true, description: ''
+            }];
+          }
+          this.exceptions = (data.exceptions || []).map(e => ({
+            date: e.date, type: e.type || 'closed',
+            start_time: (e.start_time || '').slice(0,5),
+            end_time: (e.end_time || '').slice(0,5),
+            reason: e.reason || '',
+          }));
+          const thMap = {};
+          (data.tenant_holidays || []).forEach(th => { thMap[th.holiday_id] = th.enabled !== false; });
+          this.holidays = (data.holidays || []).map(h => ({
+            ...h, enabled: thMap[h.id] !== undefined ? thMap[h.id] : true,
+          }));
+        },
+
+        next() {
+          if (this.currentStep < this.steps.length - 1) {
+            this.currentStep++;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        },
+        prev() {
+          if (this.currentStep > 0) {
+            this.currentStep--;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        },
+
+        addLocation() {
+          this.locations.push({ _key: 'new'+Date.now(), name: 'Nuova sede', city: '', address: '', active: true });
+        },
+        removeLocation(idx) {
+          const key = this.locations[idx].id || this.locations[idx]._key;
+          this.locations.splice(idx, 1);
+          this.weekDays.forEach(d => { d.slots = d.slots.filter(s => s.location_id !== key); });
+        },
+        addSlot(dIdx) {
+          const def = this.locations.find(l => l.active);
+          this.weekDays[dIdx].slots.push({
+            location_id: def ? (def.id || def._key) : '',
+            start_time: '09:00', end_time: '13:00'
+          });
+        },
+        removeSlot(dIdx, sIdx) { this.weekDays[dIdx].slots.splice(sIdx, 1); },
+        clearDay(dIdx) { this.weekDays[dIdx].slots = []; },
+        copyToWeekdays() {
+          const mon = this.weekDays[0];
+          for (let i = 1; i <= 4; i++) this.weekDays[i].slots = mon.slots.map(s => ({...s}));
+        },
+        addService() {
+          this.services.push({
+            _key: 'svc'+Date.now(), name: 'Nuovo servizio',
+            duration_minutes: 30, buffer_before: 0, buffer_after: 5,
+            price: null, active: true, description: ''
+          });
+        },
+        removeService(idx) { this.services.splice(idx, 1); },
+
+        generatedHoursText() {
+          const locMap = {};
+          this.locations.forEach(l => { locMap[l.id || l._key] = l.name; });
+          let html = '';
+          this.weekDays.forEach(d => {
+            if (!d.slots.length) html += `<div><strong>${d.label}</strong>: chiuso</div>`;
+            else {
+              const parts = d.slots.map(s => {
+                const name = locMap[s.location_id] || 'Sede non scelta';
+                return `${s.start_time}–${s.end_time} (${name})`;
+              });
+              html += `<div><strong>${d.label}</strong>: ${parts.join(' · ')}</div>`;
+            }
+          });
+          return html;
+        },
+
+        showToast(msg, ok=true) {
+          this.toast = msg; this.toastOk = ok;
+          setTimeout(() => { this.toast = null; }, 3500);
+        },
+
+        async save(markCompleted=false) {
+          this.saving = true;
+          try {
+            const payload = this.buildPayload(markCompleted);
+            let res = await fetch('/api/config', {
+              method: 'PUT', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify(payload),
+            });
+            if (res.status === 401) { window.location.href='/login'; return; }
+            if (!res.ok) {
+              const err = await res.json().catch(()=>({}));
+              throw new Error(err.detail || 'Errore salvataggio');
+            }
+            const cfgRes = await fetch('/api/config');
+            const cfg = await cfgRes.json();
+            this.applyConfig(cfg);
+            const payload2 = this.buildPayload(markCompleted);
+            res = await fetch('/api/config', {
+              method: 'PUT', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify(payload2),
+            });
+            if (!res.ok) throw new Error('Errore salvataggio orari');
+            this.updateStepCompletion();
+            this.showToast(markCompleted ? 'Configurazione completata!' : 'Bozza salvata');
+            if (markCompleted) {
+              setTimeout(() => { window.location.href = '/agenda'; }, 800);
+            }
+          } catch (e) {
+            this.showToast(e.message || 'Errore', false);
+          } finally {
+            this.saving = false;
+          }
+        },
+
+        buildPayload(markCompleted) {
+          const locIdMap = {};
+          this.locations.forEach(l => {
+            if (l.id) locIdMap[l._key] = l.id;
+            locIdMap[l.id || l._key] = l.id || l._key;
+          });
+          const working_hours = [];
+          this.weekDays.forEach(day => {
+            day.slots.forEach(s => {
+              let lid = s.location_id;
+              if (lid && !String(lid).match(/^[0-9a-f-]{36}$/i)) lid = locIdMap[lid] || lid;
+              if (!lid || !s.start_time || !s.end_time) return;
+              if (!String(lid).match(/^[0-9a-f-]{36}$/i)) return;
+              working_hours.push({
+                location_id: lid, day_of_week: day.day_of_week,
+                start_time: s.start_time, end_time: s.end_time, active: true,
+              });
+            });
+          });
+          return {
+            tenant: {
+              business_name: this.tenant.business_name,
+              specialty: this.tenant.specialty,
+              assistant_name: this.tenant.assistant_name,
+              timezone: this.tenant.timezone,
+              language: this.tenant.language,
+              min_lead_hours: this.tenant.min_lead_hours,
+              slot_search_days: this.tenant.slot_search_days,
+              max_appointments_per_day: this.tenant.max_appointments_per_day,
+              phone: this.tenant.phone,
+              whatsapp_number: this.tenant.whatsapp_number,
+              email: this.tenant.email,
+              phone_number_id: this.tenant.phone_number_id,
+              access_token: this.tenant.access_token,
+              google_calendar_id: this.tenant.google_calendar_id,
+            },
+            locations: this.locations.map((l,i) => ({
+              id: l.id || undefined, name: l.name, city: l.city, address: l.address,
+              active: l.active !== false, sort_order: i,
+            })),
+            working_hours,
+            services: this.services.map((s,i) => ({
+              id: s.id || undefined, name: s.name, description: s.description||'',
+              duration_minutes: s.duration_minutes||30, buffer_before: s.buffer_before||0,
+              buffer_after: s.buffer_after||5, price: s.price, active: s.active!==false, sort_order: i,
+            })),
+            exceptions: this.exceptions.filter(e => e.date).map(e => ({
+              date: e.date, type: e.type||'closed',
+              start_time: e.type==='closed_period' ? e.start_time : null,
+              end_time: e.type==='closed_period' ? e.end_time : null,
+              reason: e.reason||'',
+            })),
+            holidays: this.holidays.map(h => ({ holiday_id: h.id, enabled: h.enabled!==false })),
+            mark_completed: markCompleted,
+          };
+        },
+      }
+    }
+  </script>
+</body>
+</html>
